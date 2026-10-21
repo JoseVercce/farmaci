@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Ventas</title>
+  <link rel="icon" type="image/x-icon" href="../assets/css/favicon.png">
+  <!-- Aquí está el truco de la caché para el CSS (?v=pos) -->
+  <link rel="stylesheet" href="../assets/css/styles.css?v=pos">
+</head>
+<body>
+<div class="layout">
+<script src="../assets/js/menu.js"></script>
+<main class="main">
+<!-- VISTA DE FACTURACIÓN (TIPO POS) -->
+<div class="pos-layout">
+  
+  <!-- Cabecera: Número de Factura -->
+  <div class="pos-header">
+    <div class="pos-invoice-number">
+     NÚMERO DE FACTURA: <span id="pos-numero-factura">#000001</span>
+    </div>
+  </div>
+
+  <!-- Buscadores -->
+  <div class="pos-search-section">
+    <div class="pos-search-box">
+      <label>Buscar Producto</label>
+      <div class="pos-input-group">
+        <input type="text" id="pos-buscar-producto" placeholder="Ingrese nombre o código..." autocomplete="off">
+        <button class="btn-buscar" onclick="abrirModalBusqueda('Producto')">Buscar</button>
+      </div>
+    </div>
+
+    <div class="pos-search-box">
+      <label>Buscar Cliente</label>
+      <div class="pos-input-group">
+        <input type="text" id="pos-buscar-cliente" placeholder="Ingrese nombre o cédula..." autocomplete="off">
+        <button class="btn-buscar" onclick="abrirModalBusqueda('Cliente')">Buscar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cuerpo Principal: Tabla y Botones Laterales -->
+  <div class="pos-body">
+    
+    <!-- Lado Izquierdo: Tabla de Productos -->
+    <div class="pos-table-container">
+      <table class="table pos-table">
+        <thead>
+          <tr>
+            <th>PRODUCTO</th>
+            <th class="text-center">UNIDADES</th>
+            <th class="text-center">IVA</th>
+            <th class="text-right">PRECIO UNITARIO</th>
+            <th class="text-right">TOTAL</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="pos-detalle-body">
+          <!-- La factura inicia limpia, los productos se agregarán aquí desde el modal -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Lado Derecho: Botones de Acción -->
+    <div class="pos-actions">
+      <button class="pos-btn btn-guardar">GUARDAR FACTURA</button>
+      <button class="pos-btn btn-cargar">CARGAR FACTURA</button>
+      <button class="pos-btn btn-eliminar">ELIMINAR FACTURA</button>
+      <button class="pos-btn btn-descuento">APLICAR DESCUENTO</button>
+      <button class="pos-btn btn-totalizar">TOTALIZAR FACTURA</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL GENÉRICO DE BÚSQUEDA POS -->
+<div id="modal-busqueda-pos" class="modal hidden">
+  <div class="modal-content" style="max-width: 900px; width: 95%;"> <!-- Ventana mucho más ancha -->
+    <h2 id="modal-busqueda-titulo">Buscar...</h2>
+    <p style="color: #6c757d; font-size: 0.95rem; margin-top: -10px; margin-bottom: 15px;">
+      🖱️ <strong>Doble clic</strong> sobre una fila para seleccionarla
+    </p>
+    
+    <div class="pos-input-group" style="margin-bottom: 20px;">
+      <input type="text" id="input-filtro-modal" placeholder="Escriba para filtrar en la lista..." style="width: 100%; font-size: 1.1rem; padding: 12px;" autocomplete="off">
+    </div>
+
+    <!-- Contenedor más alto para ver muchos productos a la vez -->
+    <div style="max-height: 550px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px;">
+      <table class="table pos-table">
+    <thead id="modal-busqueda-head">
+          <!-- Se llenará con JS dependiendo si es Producto o Cliente -->
+        </thead>
+        <tbody id="modal-busqueda-body">
+          <!-- Se llenará con JS -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="form-actions" style="margin-top: 20px; text-align: right;">
+      <button class="btn-secondary" onclick="cerrarModalBusqueda()" style="width: auto;">Cerrar Búsqueda</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALLE FACTURA -->
+<div id="modal-detalle" class="modal hidden">
+  <div class="modal-content" style="max-width: 600px;">
+    <h2>Detalle de factura</h2>
+    <p><strong>N° Factura:</strong> <span id="det-numero"></span></p>
+    <p><strong>Cliente:</strong> <span id="det-cliente"></span></p>
+    <p><strong>Fecha:</strong> <span id="det-fecha"></span></p>
+    <p><strong>Vendido por:</strong> <span id="det-usuario"></span></p>
+    <p><strong>Total:</strong> <span id="det-total"></span></p>
+
+    <h3>Productos</h3>
+    <table class="table">
+      <thead>
+        <tr>
+        <th>Producto</th>
+        <th>Cant.</th>
+        <th>Precio</th>
+        <th>Subtotal</th>
+        </tr>
+      </thead>
+      <tbody id="det-tabla"></tbody>
+    </table>
+    <button class="btn-secondary" onclick="cerrarDetalle()">Cerrar</button>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll(".nav-dropdown-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const parent = btn.parentElement;
+    parent.classList.toggle("open");});
+});
+</script>
+
+<!-- MODAL CARGAR FACTURAS GUARDADAS -->
+<div id="modal-cargar-facturas" class="modal hidden">
+  <div class="modal-content" style="max-width: 700px; width: 100%;">
+    <h2>Facturas Guardadas (En Espera)</h2>
+    <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; margin-top: 15px;">
+      <table class="table pos-table">
+        <thead>
+          <tr>
+            <th>Motivo / Nombre</th>
+            <th>Cliente</th>
+            <th class="text-right">Total</th>
+            <th class="text-center">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="lista-facturas-guardadas">
+          <!-- Se llena dinámicamente -->
+        </tbody>
+      </table>
+    </div>
+    <div class="form-actions" style="margin-top: 20px; text-align: right;">
+      <button class="btn-secondary" onclick="cerrarModalCargar()" style="width: auto;">Cerrar</button>
+    </div>
+  </div>
+</div>
+<!-- MODAL CONFIRMAR ELIMINAR FACTURA -->
+<div id="modal-confirmar-eliminar" class="modal hidden">
+  <div class="modal-content" style="max-width: 400px; text-align: center;">
+    <h2 style="color: #dc3545; margin-bottom: 15px; font-size: 1.8rem;">⚠️ ¿Estás seguro?</h2>
+    <p style="margin-bottom: 25px; font-size: 1.1rem; color: #495057;">
+      Esto vaciará todos los productos de la factura actual en pantalla. Esta acción no se puede deshacer.
+    </p>
+    
+    <div style="display: flex; gap: 15px; justify-content: center;">
+      <button class="btn-secondary" onclick="cerrarModalEliminar()" style="flex: 1; padding: 12px; font-size: 1rem;">Cancelar</button>
+      <button onclick="confirmarEliminarFactura()" style="flex: 1; padding: 12px; font-size: 1rem; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Sí, limpiar factura</button>
+    </div>
+  </div>  
+</div>
+
+<!-- MODAL ALERTA PERSONALIZADA -->
+<div id="modal-alerta-pos" class="modal hidden">
+  <div class="modal-content" style="max-width: 400px; text-align: center;">
+    <!-- Icono o título de advertencia -->
+    <h2 style="color: #ffc107; margin-bottom: 15px; font-size: 1.8rem;">⚠️ Atención</h2>
+    
+    <!-- Aquí inyectaremos el mensaje dinámicamente con JS -->
+    <p id="texto-alerta-pos" style="margin-bottom: 25px; font-size: 1.1rem; color: #495057;">
+      Mensaje de error
+    </p>
+    
+    <!-- Botón para cerrar -->
+    <button class="btn-primary" onclick="cerrarAlertaPersonalizada()" style="padding: 10px 30px; font-size: 1rem; border-radius: 4px;">Entendido</button>
+  </div>
+</div>
+<div id="modal-ajustes" class="modal hidden">
+  <div class="modal-ajustes-content">
+    <h2 class="aj-title">Ajustes de la Farmacia</h2>
+    <div class="aj-grid">
+      <div class="aj-block">
+        <h3 class="aj-subtitle">Identidad</h3>
+        <label>Nombre comercial</label>
+        <input type="text" id="aj-nombre">
+
+        <label>Logo</label>
+        <div class="file-center">
+          <div class="file-input-wrapper">
+            <input type="file" id="aj-logo" accept="image/*">
+            <label for="aj-logo" class="file-btn">Elegir archivo</label>
+            <span id="file-name">No se ha seleccionado ningún archivo</span>
+          </div>
+          <img id="aj-preview-logo" class="preview-logo" src="">
+        </div>
+      </div>
+
+      <div class="aj-block">
+        <h3 class="aj-subtitle">Colores del Sistema</h3>
+        <label>Color primario</label>
+        <input type="color" id="aj-color-primario">
+
+        <label>Color secundario</label>
+        <input type="color" id="aj-color-secundario">
+
+        <label>Color del sidebar</label>
+        <input type="color" id="aj-color-sidebar">
+      </div>
+    </div>
+
+    <div class="aj-actions">
+      <button id="aj-guardar" class="save-btn">Guardar cambios</button>
+      <button id="aj-cerrar" class="close-btn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Aquí está el truco de la caché para JS (?v=2) -->
+<script src="facturas.js?v=21"></script>
+<script src="../assets/js/usuario.js"></script>
+<script src="../assets/js/config_farmacia.js"></script>
+<script src="../assets/js/ajustes_sidebar.js"></script>
+</body>
+</html>

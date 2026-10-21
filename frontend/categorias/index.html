@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Categorías</title>
+  <link rel="icon" type="image/x-icon" href="../assets/css/favicon.png">
+  <link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+<div class="layout">
+<script src="../assets/js/menu.js"></script>
+
+<main class="main">
+  <section class="section visible">
+    <div class="section-header">
+      <h2>🏷 Gestión de Categorías</h2>
+      <div class="search-controls">
+        <input type="text" id="buscar-categoria" placeholder="Buscar categoría...">
+      </div>
+      <button id="btn-nueva-categoria" class="btn-primary btn-crear">Nueva categoría</button>
+    </div>
+
+    <table class="table">
+      <thead>
+        <tr>
+        <th>Nombre</th>
+        <th>Descripción</th>
+        <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tabla-categorias"></tbody>
+    </table>
+
+    <div id="paginacion-categorias" class="pagination"></div>
+  </section>
+</main>
+</div>
+
+<div id="modal-categoria" class="modal hidden">
+  <div class="modal-content">
+    <h2 id="modal-title">Nueva categoría</h2>
+
+    <form id="form-categoria">
+      <input type="hidden" id="categoria-id" name="id">
+
+      <div class="form-group">
+        <label>Nombre</label>
+        <input type="text" id="categoria-nombre" name="nombre" required>
+      </div>
+
+      <div class="form-group">
+        <label>Descripción</label>
+        <input type="text" id="categoria-descripcion" name="descripcion">
+      </div>
+
+      <div class="form-group">
+        <button type="submit" class="btn-primary">Guardar</button>
+        <button type="button" id="btn-cancelar" class="btn-secondary">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<div id="modal-ajustes" class="modal hidden">
+  <div class="modal-ajustes-content">
+    <h2 class="aj-title">Ajustes de la Farmacia</h2>
+    <div class="aj-grid">
+      <div class="aj-block">
+        <h3 class="aj-subtitle">Identidad</h3>
+        <label>Nombre comercial</label>
+        <input type="text" id="aj-nombre">
+
+        <label>Logo</label>
+        <div class="file-center">
+          <div class="file-input-wrapper">
+            <input type="file" id="aj-logo" accept="image/*">
+            <label for="aj-logo" class="file-btn">Elegir archivo</label>
+            <span id="file-name">No se ha seleccionado ningún archivo</span>
+          </div>
+          <img id="aj-preview-logo" class="preview-logo" src="">
+        </div>
+      </div>
+
+      <div class="aj-block">
+        <h3 class="aj-subtitle">Colores del Sistema</h3>
+        <label>Color primario</label>
+        <input type="color" id="aj-color-primario">
+
+        <label>Color secundario</label>
+        <input type="color" id="aj-color-secundario">
+
+        <label>Color del sidebar</label>
+        <input type="color" id="aj-color-sidebar">
+      </div>
+    </div>
+
+    <div class="aj-actions">
+      <button id="aj-guardar" class="save-btn">Guardar cambios</button>
+      <button id="aj-cerrar" class="close-btn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+document.querySelectorAll(".nav-dropdown-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    btn.parentElement.classList.toggle("open");});
+});
+</script>
+<script src="categorias.js"></script>
+<script src="../assets/js/usuario.js"></script>
+<script src="../assets/js/config_farmacia.js"></script>
+<script src="../assets/js/ajustes_sidebar.js"></script>
+</body>
+</html>

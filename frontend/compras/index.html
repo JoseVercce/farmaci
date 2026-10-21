@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Compras</title>
+  <link rel="icon" type="image/x-icon" href="../assets/css/favicon.png">
+  <link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+<div class="layout">
+<script src="../assets/js/menu.js"></script>
+
+<main class="main">
+  <section class="section visible">
+    <div class="section-header">
+      <h2>🛒 Gestión de compras</h2>
+      <div class="search-controls">
+        <input type="text" id="buscar-compra" placeholder="Buscar compra...">
+      </div>
+      <button id="btn-nueva-compra" class="btn-primary btn-crear"> Nueva compra </button>
+    </div>
+
+    <table class="table">
+      <thead>
+        <tr>
+        <th>Fecha</th>
+        <th>Proveedor</th>
+        <th>Total</th>
+        <th>Usuario</th>
+        <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tabla-compras"></tbody>
+    </table>
+    <div id="paginacion-compras" class="pagination"></div>
+  </section>
+</main>
+</div>
+
+<div id="modal-compra" class="modal hidden">
+  <div class="modal-content">
+    <h2 id="modal-title-compra">Nueva compra</h2>
+
+    <form id="form-compra" method="POST">
+      <input type="hidden" id="compra-id" name="id">
+
+      <div class="form-group">
+        <label>Fecha</label>
+        <input type="datetime-local" id="compra-fecha" name="fecha" required>
+      </div>
+
+      <div class="form-group">
+        <label>Proveedor</label>
+        <select id="compra-proveedor" name="id_proveedor" required></select>
+      </div>
+
+<div class="form-group productos-group">
+  <label>Productos agregados</label>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th>Cantidad</th>
+        <th>Costo</th>
+        <th>Subtotal</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="tabla-detalle-compra"></tbody>
+  </table>
+
+  <button type="button" id="btn-agregar-producto" class="btn-primary">Agregar producto</button>
+</div>
+
+<!-- TOTAL GRANDE CON TÍTULO -->
+<div class="total-wrapper">
+    <div class="total-label">TOTAL</div>
+    <div class="total-display" id="total-visual">0.00</div>
+</div>
+
+<!-- Input original oculto -->
+<input type="number" id="compra-total" name="total" step="0.01" readonly>
+
+      <div class="form-group">
+        <button type="submit" class="btn-primary">Guardar compra</button>
+        <button type="button" id="btn-cancelar-compra" class="btn-secondary">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="modal-agregar-producto" class="modal hidden">
+  <div class="modal-content">
+    <h2>Agregar producto</h2>
+
+    <div class="form-group">
+      <label>Producto</label>
+      <select id="detalle-producto" required></select>
+    </div>
+
+    <div class="form-group">
+  <label>Almacén destino</label>
+
+  <div class="almacen-selector">
+    <button type="button" class="btn-secondary almacen-btn" data-almacen="8">
+      🚚 Transito
+    </button>
+
+    <button type="button" class="btn-secondary almacen-btn" data-almacen="6">
+      🏬 Depósito
+    </button>
+  </div>
+
+  <input type="hidden" id="detalle-almacen" value="">
+</div>
+
+
+    <div class="form-group">
+      <label>Cantidad</label>
+      <input type="number" id="detalle-cantidad" min="1" required>
+    </div>
+
+    <div class="form-group">
+      <label>Costo unitario</label>
+      <input type="number" id="detalle-costo" step="0.01" required>
+    </div>
+
+    <div class="form-group">
+      <button id="btn-guardar-detalle" class="btn-primary">Agregar</button>
+      <button id="btn-cancelar-detalle" class="btn-secondary">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================
+     MODAL: DETALLE DE COMPRA
+============================= -->
+<div id="modal-detalle-compra" class="modal hidden">
+  <div class="modal-content compra-modal">
+
+    <h2 class="modal-title">Detalle de compra</h2>
+
+    <div class="compra-info">
+      <div class="info-item">
+        <span class="label">Fecha:</span>
+        <span id="detc-fecha" class="value"></span>
+      </div>
+
+      <div class="info-item">
+        <span class="label">Proveedor:</span>
+        <span id="detc-proveedor" class="value"></span>
+      </div>
+
+      <div class="info-item">
+        <span class="label">Usuario:</span>
+        <span id="detc-usuario" class="value"></span>
+      </div>
+
+      <div class="info-item">
+        <span class="label">Total:</span>
+        <span id="detc-total" class="value"></span>
+      </div>
+    </div>
+
+    <h3 class="section-title">Productos</h3>
+
+    <table class="table compra-table">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>Cantidad</th>
+          <th>Costo unitario</th>
+          <th>Subtotal</th>
+          <th>Almacén</th>
+        </tr>
+      </thead>
+      <tbody id="detc-tabla"></tbody>
+    </table>
+
+    <button class="btn-secondary cerrar-modal-btn" onclick="cerrarModalCompra()">Cerrar</button>
+
+  </div>
+</div>
+
+
+
+<div id="modal-ajustes" class="modal hidden">
+  <div class="modal-ajustes-content">
+    <h2 class="aj-title">Ajustes de la Farmacia</h2>
+    <div class="aj-grid">
+      <div class="aj-block">
+        <h3 class="aj-subtitle">Identidad</h3>
+        <label>Nombre comercial</label>
+        <input type="text" id="aj-nombre">
+
+        <label>Logo</label>
+        <div class="file-center">
+          <div class="file-input-wrapper">
+            <input type="file" id="aj-logo" accept="image/*">
+            <label for="aj-logo" class="file-btn">Elegir archivo</label>
+            <span id="file-name">No se ha seleccionado ningún archivo</span>
+          </div>
+          <img id="aj-preview-logo" class="preview-logo" src="">
+        </div>
+      </div>
+
+      <div class="aj-block">
+        <h3 class="aj-subtitle">Colores del Sistema</h3>
+        <label>Color primario</label>
+        <input type="color" id="aj-color-primario">
+
+        <label>Color secundario</label>
+        <input type="color" id="aj-color-secundario">
+
+        <label>Color del sidebar</label>
+        <input type="color" id="aj-color-sidebar">
+      </div>
+    </div>
+
+    <div class="aj-actions">
+      <button id="aj-guardar" class="save-btn">Guardar cambios</button>
+      <button id="aj-cerrar" class="close-btn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+document.querySelectorAll(".nav-dropdown-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    btn.parentElement.classList.toggle("open");});
+});
+</script>
+<script src="compras.js"></script>
+<script src="../assets/js/usuario.js"></script>
+<script src="../assets/js/config_farmacia.js"></script>
+<script src="../assets/js/ajustes_sidebar.js"></script>
+</body>
+</html>

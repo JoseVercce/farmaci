@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Inicio del Gestor</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <link rel="icon" type="image/x-icon" href="../assets/css/favicon.png">
+  <link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<div class="layout">
+<script src="../assets/js/menu.js"></script>
+
+
+<main class="main">
+  <section class="section visible">
+    <div class="welcome-box">
+      <h2>💊 Bienvenido, <span id="usor-nombro-welcome"></span> 👋</h2>
+    </div>
+
+    <div class="dashboard-cards">
+      <div class="dash-card card-purple">
+        <div class="dash-card-icon">
+          <svg width="28" height="28" fill="white"><path d="M4 6h20v2H4zm0 6h20v2H4zm0 6h20v2H4z"/></svg>
+        </div>
+        <div class="dash-card-info">
+          <h3>Productos</h3>
+          <p id="card-productos">0</p>
+        </div>
+      </div>
+
+      <div class="dash-card card-teal">
+        <div class="dash-card-icon">
+          <svg width="28" height="28" fill="white"><path d="M4 4h16v16H4z"/></svg>
+        </div>
+        <div class="dash-card-info">
+          <h3>Stock</h3>
+          <p id="card-stock">0</p>
+        </div>
+      </div>
+
+      <div class="dash-card card-purple">
+        <div class="dash-card-icon">
+          <svg width="28" height="28" fill="white"><path d="M6 4h12v2H6zm0 4h12v2H6zm0 4h8v2H6z"/></svg>
+        </div>
+        <div class="dash-card-info">
+          <h3>Facturas</h3>
+          <p id="card-facturas">0</p>
+        </div>
+      </div>
+
+      <div class="dash-card card-teal">
+        <div class="dash-card-icon">
+          <svg width="28" height="28" fill="white"><path d="M12 4a4 4 0 110 8 4 4 0 010-8zm0 10c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5z"/></svg>
+        </div>
+        <div class="dash-card-info">
+          <h3>Proveedores</h3>
+          <p id="card-proveedores">0</p>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="section-title">Accesos rápidos</h3>
+
+    <div class="quick-access">
+      <a href="../productos/index.html" class="quick-btn">➕ Nuevo producto</a>
+      <a href="../facturas/index.html" class="quick-btn">🧾 Registrar Facturas</a>
+      <a href="../movimientos/index.html" class="quick-btn">📦 Movimiento de stock</a>
+      <a href="../proveedores/index.html" class="quick-btn">👥 Nuevo proveedor</a>
+    </div>
+
+    <h3 class="section-title">Últimos movimientos</h3>
+    <table class="table">
+      <thead>
+        <tr>
+        <th>Fecha</th>
+        <th>Tipo</th>
+        <th>Producto</th>
+        <th>Cantidad</th>
+        </tr>
+      </thead>
+      <tbody id="tabla-movimientos-recientes"></tbody>
+    </table>
+  </section>
+</main>
+</div>
+
+
+<div id="modal-ajustes" class="modal hidden">
+  <div class="modal-ajustes-content">
+    <h2 class="aj-title">Ajustes de la Farmacia</h2>
+    <div class="aj-grid">
+      <div class="aj-block">
+        <h3 class="aj-subtitle">Identidad</h3>
+        <label>Nombre comercial</label>
+        <input type="text" id="aj-nombre">
+
+        <label>Logo</label>
+        <div class="file-center">
+          <div class="file-input-wrapper">
+            <input type="file" id="aj-logo" accept="image/*">
+            <label for="aj-logo" class="file-btn">Elegir archivo</label>
+            <span id="file-name">No se ha seleccionado ningún archivo</span>
+          </div>
+          <img id="aj-preview-logo" class="preview-logo" src="">
+        </div>
+      </div>
+
+      <div class="aj-block">
+        <h3 class="aj-subtitle">Colores del Sistema</h3>
+        <label>Color primario</label>
+        <input type="color" id="aj-color-primario">
+
+        <label>Color secundario</label>
+        <input type="color" id="aj-color-secundario">
+
+        <label>Color del sidebar</label>
+        <input type="color" id="aj-color-sidebar">
+      </div>
+    </div>
+
+    <div class="aj-actions">
+      <button id="aj-guardar" class="save-btn">Guardar cambios</button>
+      <button id="aj-cerrar" class="close-btn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll(".nav-dropdown-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    btn.parentElement.classList.toggle("open");});
+});
+</script>
+<script src="dashboard.js"></script>
+<script src="../assets/js/usuario.js"></script>
+<script src="../assets/js/config_farmacia.js"></script>
+<script src="../assets/js/ajustes_sidebar.js"></script>
+</body>
+</html>

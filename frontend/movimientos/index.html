@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Movimientos</title>
+  <link rel="icon" type="image/x-icon" href="../assets/css/favicon.png">
+  <link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+<div class="layout">
+<script src="../assets/js/menu.js"></script>
+
+<main class="main">
+  <section class="section visible">
+    <div class="section-header">
+      <h2>🔄 Movimientos de inventario</h2>
+      <input type="text" id="buscar-mov" placeholder="Buscar movimientos..." class="form-control">
+    </div>
+
+    <table class="table">
+      <thead>
+        <tr>
+        <th>Fecha</th>
+        <th>Producto</th>
+        <th>Tipo</th>
+        <th>Inicio</th>
+        <th>Ingreso</th>
+        <th>Salida</th>
+        <th>Final</th>
+        </tr>
+      </thead>
+      <tbody id="tabla-movimientos"></tbody>
+    </table>
+    <div id="paginacion" class="pagination"></div>
+  </section>
+</main>
+</div>
+
+<div id="modal-ajustes" class="modal hidden">
+  <div class="modal-ajustes-content">
+    <h2 class="aj-title">Ajustes de la Farmacia</h2>
+    <div class="aj-grid">
+      <div class="aj-block">
+        <h3 class="aj-subtitle">Identidad</h3>
+        <label>Nombre comercial</label>
+        <input type="text" id="aj-nombre">
+
+        <label>Logo</label>
+        <div class="file-center">
+          <div class="file-input-wrapper">
+            <input type="file" id="aj-logo" accept="image/*">
+            <label for="aj-logo" class="file-btn">Elegir archivo</label>
+            <span id="file-name">No se ha seleccionado ningún archivo</span>
+          </div>
+          <img id="aj-preview-logo" class="preview-logo" src="">
+        </div>
+      </div>
+
+      <div class="aj-block">
+        <h3 class="aj-subtitle">Colores del Sistema</h3>
+        <label>Color primario</label>
+        <input type="color" id="aj-color-primario">
+
+        <label>Color secundario</label>
+        <input type="color" id="aj-color-secundario">
+
+        <label>Color del sidebar</label>
+        <input type="color" id="aj-color-sidebar">
+      </div>
+    </div>
+
+    <div class="aj-actions">
+      <button id="aj-guardar" class="save-btn">Guardar cambios</button>
+      <button id="aj-cerrar" class="close-btn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+document.querySelectorAll(".nav-dropdown-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const parent = btn.parentElement;
+    parent.classList.toggle("open");});
+});
+</script>
+<script src="movimientos.js"></script>
+<script src="../assets/js/usuario.js"></script>
+<script src="../assets/js/config_farmacia.js"></script>
+<script src="../assets/js/ajustes_sidebar.js"></script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Historial de Ventas</title>
+  <link rel="icon" type="image/x-icon" href="../assets/css/favicon.png">
+  <!-- Aquí está el truco de la caché para el CSS (?v=pos) -->
+  <link rel="stylesheet" href="../assets/css/styles.css?v=pos">
+</head>
+<body>
+
+  <!-- Contenedor principal que acomoda el menú y el contenido -->
+  <div class="layout">
+
+   <script src="../assets/js/menu.js"></script>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="main-content" style="flex: 1; width: 100%; padding: 20px;">
+        
+        <!-- Barra superior morada -->
+        <div class="bg-primary" style="background-color: var(--primary-color, var(--color-primario)); color: white; padding: 15px; border-radius: 4px; margin-bottom: 20px;" id="top-bar-historial">
+    <h1 style="margin: 0; font-size: 1.2rem; text-align: right;">HISTORIAL DE VENTAS Y FACTURACIÓN</h1>
+</div>
+
+        <!-- Tabla del Historial -->
+        <div style="padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <div style="max-height: 600px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 6px;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <thead style="background-color: #f8f9fa; position: sticky; top: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                  <tr>
+                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6; color: #495057;">N° Factura</th>
+                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6; color: #495057;">Fecha y Hora</th>
+                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6; color: #495057;">Cliente</th>
+                    <th style="padding: 12px; text-align: right; border-bottom: 2px solid #dee2e6; color: #495057;">Total Cobrado</th>
+                    <th style="padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6; color: #495057;">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="tabla-historial-body">
+                  <tr>
+                      <td colspan="5" style="text-align: center; padding: 30px; color: #6c757d;">Cargando historial... ⏳</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+        </div>
+
+    </main>
+
+  </div> <!-- FIN DEL LAYOUT -->
+
+  <div id="modal-ajustes" class="modal hidden">
+  <div class="modal-ajustes-content">
+    <h2 class="aj-title">Ajustes de la Farmacia</h2>
+    <div class="aj-grid">
+      <div class="aj-block">
+        <h3 class="aj-subtitle">Identidad</h3>
+        <label>Nombre comercial</label>
+        <input type="text" id="aj-nombre">
+
+        <label>Logo</label>
+        <div class="file-center">
+          <div class="file-input-wrapper">
+            <input type="file" id="aj-logo" accept="image/*">
+            <label for="aj-logo" class="file-btn">Elegir archivo</label>
+            <span id="file-name">No se ha seleccionado ningún archivo</span>
+          </div>
+          <img id="aj-preview-logo" class="preview-logo" src="">
+        </div>
+      </div>
+
+      <div class="aj-block">
+        <h3 class="aj-subtitle">Colores del Sistema</h3>
+        <label>Color primario</label>
+        <input type="color" id="aj-color-primario">
+
+        <label>Color secundario</label>
+        <input type="color" id="aj-color-secundario">
+
+        <label>Color del sidebar</label>
+        <input type="color" id="aj-color-sidebar">
+      </div>
+    </div>
+
+    <div class="aj-actions">
+      <button id="aj-guardar" class="save-btn">Guardar cambios</button>
+      <button id="aj-cerrar" class="close-btn">Cerrar</button>
+    </div>
+  </div>
+</div>3
+
+  <!-- Conexión a la lógica de JS (actualizado a v=2 para forzar los cambios en tu navegador) -->
+   <script src="../assets/js/usuario.js"></script>
+   <script src="../assets/js/config_farmacia.js"></script>
+   <script src="../assets/js/ajustes_sidebar.js"></script>
+   <script src="historial.js?v=2"></script>
+</body>
+</html>

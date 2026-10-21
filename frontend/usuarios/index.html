@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Usuarios</title>
+  <link rel="icon" type="image/x-icon" href="../assets/css/favicon.png">
+  <link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+<div class="layout">
+<script src="../assets/js/menu.js"></script>
+
+<main class="main">
+  <section class="section visible">
+    <div class="section-header">
+      <h2>👤 Usuarios del sistema</h2>
+      <button id="btn-nuevo-usuario" class="btn-primary">Nuevo usuario</button>
+    </div>
+
+    <table class="table">
+      <thead>
+        <tr>
+        <th>Nombre</th>
+        <th>Usuario</th>
+        <th>Correo</th>
+        <th>Telefono</th>
+        <th>Roles</th>
+        <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tabla-usuarios"></tbody>
+    </table>
+  </section>
+</main>
+</div>
+
+<div id="modal-usuario" class="modal hidden">
+  <div class="modal-content">
+    <h2 id="modal-user-title">Nuevo usuario</h2>
+
+    <form id="form-usuario">
+      <input type="hidden" id="user-id" name="id">
+
+      <div class="form-group">
+        <label>Nombre</label>
+        <input type="text" id="user-nombre" name="nombre" required>
+      </div>
+
+      <div class="form-group">
+        <label>Usuario</label>
+        <input type="text" id="user-usuario" name="usuario" required>
+      </div>
+
+      <div class="form-group">
+        <label>Clave</label>
+        <input type="password" id="user-clave" name="clave" required>
+      </div>
+
+      <div class="form-group">
+        <label>Correo</label>
+        <input type="email" id="user-correo" name="correo" required>
+      </div>
+
+      <div class="form-group">
+        <label>Telefono</label>
+        <input type="text" id="user-telefono" name="telefono" required>
+      </div>
+
+      <!-- ⭐ ESTA ES LA CLAVE: Estado en la misma fila que Teléfono -->
+      <div class="form-group estado-group">
+        <label>Estado</label>
+        <select id="user-estado" name="estado">
+          <option value="1">Activo</option>
+          <option value="0">Inactivo</option>
+        </select>
+      </div>
+
+      <div class="form-group roles-group">
+        <label>Roles</label>
+        <div id="lista-roles" class="roles-checkbox-list"></div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">Guardar</button>
+        <button type="button" class="btn-secondary" id="btn-cancelar-usuario">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<div id="modal-ajustes" class="modal hidden">
+  <div class="modal-ajustes-content">
+    <h2 class="aj-title">Ajustes de la Farmacia</h2>
+    <div class="aj-grid">
+      <div class="aj-block">
+        <h3 class="aj-subtitle">Identidad</h3>
+        <label>Nombre comercial</label>
+        <input type="text" id="aj-nombre">
+
+        <label>Logo</label>
+        <div class="file-center">
+          <div class="file-input-wrapper">
+            <input type="file" id="aj-logo" accept="image/*">
+            <label for="aj-logo" class="file-btn">Elegir archivo</label>
+            <span id="file-name">No se ha seleccionado ningún archivo</span>
+          </div>
+          <img id="aj-preview-logo" class="preview-logo" src="">
+        </div>
+      </div>
+
+      <div class="aj-block">
+        <h3 class="aj-subtitle">Colores del Sistema</h3>
+        <label>Color primario</label>
+        <input type="color" id="aj-color-primario">
+
+        <label>Color secundario</label>
+        <input type="color" id="aj-color-secundario">
+
+        <label>Color del sidebar</label>
+        <input type="color" id="aj-color-sidebar">
+      </div>
+    </div>
+
+    <div class="aj-actions">
+      <button id="aj-guardar" class="save-btn">Guardar cambios</button>
+      <button id="aj-cerrar" class="close-btn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+
+<script src="usuarios.js"></script>
+<script src="../assets/js/usuario.js"></script>
+<script src="../assets/js/config_farmacia.js"></script>
+<script src="../assets/js/ajustes_sidebar.js"></script>
+<script>
+document.querySelectorAll(".nav-dropdown-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const parent = btn.parentElement;
+    parent.classList.toggle("open");});
+});
+</script>
+</body>
+</html>
