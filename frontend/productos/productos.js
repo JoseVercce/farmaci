@@ -6,14 +6,19 @@ const API_CATEGORIAS = "../../backend/categoria/";
 
 let paginaProd = 1;
 let buscarProd = "";
+let estadoProd = "1";
 
 
 /* ============================
    INICIO
 ============================ */
 document.addEventListener("DOMContentLoaded", () => {
-    cargarProductos();
     cargarCategorias();
+    inicializarFiltroEstado("filtro-productos", (estado) => {
+        estadoProd = estado;
+        paginaProd = 1;
+        cargarProductos();
+    });
 
     document.getElementById("buscar-producto").addEventListener("input", e => {
         buscarProd = e.target.value;
@@ -36,7 +41,7 @@ async function cargarProductos() {
     tbody.innerHTML = "";
 
     const res = await fetch(
-        `${API_PRODUCTOS}listar.php?buscar=${buscarProd}&pagina=${paginaProd}&limite=10`
+        `${API_PRODUCTOS}listar.php?buscar=${encodeURIComponent(buscarProd)}&pagina=${paginaProd}&limite=8&estado=${estadoProd}`
     );
 
     const data = await res.json();
@@ -46,16 +51,24 @@ async function cargarProductos() {
         return;
     }
 
+    if (data.data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hay productos para este filtro.</td></tr>';
+    }
+
     data.data.forEach(p => {
         const tr = document.createElement("tr");
+        const botonEstado = Number(p.estado) === 1
+            ? `<button class="action-btn delete" onclick="eliminarProducto(${p.id})" aria-label="Inactivar producto">🗑️</button>`
+            : `<button class="action-btn edit" onclick="activarProducto(${p.id})" aria-label="Activar producto">♻️</button>`;
         tr.innerHTML = `
             <td>${p.nombre}</td>
             <td>${p.descripcion}</td>
             <td>${p.categoria}</td>
             <td>${p.precio}</td>
+            <td>${Number(p.estado) === 1 ? "Activo" : "Inactivo"}</td>
             <td class="acciones">
                 <button class="action-btn edit" onclick="editarProducto(${p.id})">✏️</button>
-                <button class="action-btn delete" onclick="eliminarProducto(${p.id})">🗑️</button>
+                ${botonEstado}
             </td>
         `;
         tbody.appendChild(tr);
@@ -72,7 +85,7 @@ function renderPaginacionProductos(total) {
     const cont = document.getElementById("paginacion-productos");
     cont.innerHTML = "";
 
-    const totalPaginas = Math.ceil(total / 10);
+    const totalPaginas = Math.ceil(total / 8);
     if (totalPaginas <= 1) return;
 
     if (paginaProd > 1) {
@@ -146,6 +159,20 @@ function cerrarModal() {
     document.getElementById("modal-producto").style.display = "none";
 }
 
+function mostrarMensajeBonito(texto, icono = "✔️") {
+    const modal = document.getElementById("modal-mensaje");
+    const mensajeTexto = document.getElementById("mensaje-texto");
+    const mensajeIcono = document.getElementById("mensaje-icono");
+
+    mensajeTexto.textContent = texto;
+    mensajeIcono.textContent = icono;
+
+    modal.classList.remove("hidden");
+
+    document.getElementById("mensaje-btn").onclick = () => {
+        modal.classList.add("hidden");
+    };
+}
 
 /* ============================
    GUARDAR PRODUCTO
@@ -164,13 +191,14 @@ async function guardarProducto(e) {
 
     const json = await res.json();
 
-    if (!json.ok) {
-        alert("Error: " + json.error);
-        return;
-    }
+if (!json.ok) {
+    mostrarMensajeBonito("Error: " + json.error, "❌");
+    return;
+}
 
-    cerrarModal();
-    cargarProductos();
+cerrarModal();
+cargarProductos();
+mostrarMensajeBonito("Producto registrado correctamente", "🧴");
 }
 
 
@@ -198,31 +226,83 @@ async function editarProducto(id) {
     document.getElementById("modal-producto").style.display = "flex";
 }
 
+function confirmarAccion(texto, callbackAceptar) {
+    const modal = document.getElementById("modal-confirmar");
+    const textoElem = document.getElementById("confirmar-texto");
+
+    textoElem.textContent = texto;
+    modal.classList.remove("hidden");
+
+    document.getElementById("confirmar-aceptar").onclick = () => {
+        modal.classList.add("hidden");
+        callbackAceptar(); 
+    };
+
+    document.getElementById("confirmar-cancelar").onclick = () => {
+        modal.classList.add("hidden");
+    };
+}
+
+async function activarProducto(id) {
+    confirmarAccion("¿Activar nuevamente este producto?", async () => {
+        try {
+            const formData = new FormData();
+            formData.append("id", id);
+            const respuesta = await fetch(API_PRODUCTOS + "activar.php", {
+                method: "POST",
+                body: formData
+            });
+            const json = await respuesta.json();
+
+            if (!respuesta.ok || !json.ok) {
+                mostrarMensajeBonito("Error: " + (json.error || "No se pudo activar el producto."), "❌");
+                return;
+            }
+
+            await cargarProductos();
+            mostrarMensajeBonito(json.msg || "Producto activado correctamente", "✅");
+        } catch (error) {
+            console.error("Error activando producto:", error);
+            mostrarMensajeBonito("Error de conexión al activar el producto.", "❌");
+        }
+    }, "Sí, activar");
+}
 
 /* ============================
    ELIMINAR PRODUCTO
 ============================ */
 function eliminarProducto(id_producto) {
 
-    const formData = new FormData();
-    formData.append("id", id_producto);
+    confirmarAccion("¿Eliminar este producto?", async () => {
 
-    fetch("../../backend/productos/eliminar.php", {
-        method: "POST",
-        body: formData
-    })
-    .then(res => res.json())
-    .then(json => {
-        if (!json.ok) {
-            alert("Error: " + json.error);
-            return;
+        const formData = new FormData();
+        formData.append("id", id_producto);
+
+        try {
+            const res = await fetch("../../backend/productos/eliminar.php", {
+                method: "POST",
+                body: formData
+            });
+
+            const json = await res.json();
+
+            if (!json.ok) {
+                mostrarMensajeBonito("Error: " + json.error, "❌");
+                return;
+            }
+
+            mostrarMensajeBonito("Producto eliminado correctamente", "🗑️");
+            cargarProductos();
+
+        } catch (err) {
+            console.error("Error eliminando producto:", err);
+            mostrarMensajeBonito("Error inesperado al eliminar", "⚠️");
         }
 
-        alert("Producto eliminado correctamente");
-        cargarProductos();
-    })
-    .catch(err => console.error("Error eliminando producto:", err));
+    });
 }
+
+
 
 async function moverStock(id_stock, id_destino) {
     const formData = new FormData();
@@ -238,7 +318,8 @@ async function moverStock(id_stock, id_destino) {
         const json = await res.json();
 
         if (json.ok) {
-            alert("Producto movido correctamente");
+            mostrarMensajeBonito("Producto movido correctamente", "📦");
+
             cargarProductos();
         } else {
             alert("Error: " + json.msg);

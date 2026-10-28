@@ -3,14 +3,14 @@
     "slogan": null,
     "logo": "..\/assets\/css\/logo_1791841198.png",
     "colorPrimario": "#150554",
-    "colorSidebar": "#150540",
+    "colorSidebar": "#150554",
     "primary": "#ff0000",
     "primary_dark": null,
     "secondary": "#14b8a6",
     "secondary_dark": "#0d9488",
     "sidebar_bg": "#ff0000",
     "sidebar_hover": "#d4ff00",
-    "colorSecundario": "#893bc4",
+    "colorSecundario": "#8540b7",
     "colorSecundarioDark": null,
     "colorSidebarHover": null
 }

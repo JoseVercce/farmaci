@@ -2,11 +2,12 @@
 header("Content-Type: application/json");
 require_once "../conexion.php";
 
-$sql = "SELECT * FROM modulo";
-$result = $conn->query($sql);
+$sql = $conexion->query("SELECT id, nombre FROM modulo ORDER BY nombre ASC");
 
-$data = [];
-while ($row = $result->fetch_assoc()) $data[] = $row;
+$modulos = [];
+while ($row = $sql->fetch_assoc()) {
+    $modulos[] = $row;
+}
 
-echo json_encode($data);
+echo json_encode($modulos);
 ?>

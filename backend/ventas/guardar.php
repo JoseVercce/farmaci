@@ -79,11 +79,12 @@ if ($cantidad_vendida > $stock_actual) {
             VALUES (?, NOW(), ?, ?, ?, ?)";
 
     $stmt = $conexion->prepare($sql);
-    $stmt->bind_param("siidi", $numero_factura, $id_cliente, $id_caja, $total, $id_usuario);
-    $stmt->execute();
+    
+    // En PDO, enviamos los datos directamente en el execute dentro de un arreglo
+    $stmt->execute([$numero_factura, $id_cliente, $id_caja, $total, $id_usuario]);
 
-    $id_venta = $stmt->insert_id;
-
+    // Y el ID de la venta se captura directamente desde la conexión
+    $id_venta = $conexion->lastInsertId();
     // ================================
     // INSERTAR DETALLE
     // ================================

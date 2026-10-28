@@ -1,12 +1,38 @@
-const API_COMPRAS = "../../backend/compras/";
-const API_PROVEEDORES = "../../backend/proveedores/";
-const API_PRODUCTOS = "../../backend/productos/";
+const API_COMPRAS = "../../../berti2/backend/compras/";
+const API_PROVEEDORES = "../../../berti2/backend/proveedores/";
+const API_PRODUCTOS = "../../../berti2/backend/productos/";
 
 let DETALLES_COMPRA = [];
 
 // 🔹 NUEVO:
 let paginaCompras = 1;
 let buscarCompras = "";
+
+async function solicitarJSON(url, options) {
+  let response;
+  let texto;
+
+  try {
+    response = await fetch(url, options);
+    texto = await response.text();
+  } catch (error) {
+    console.error("Error al comunicarse con el servidor:", error);
+    alert("No se pudo comunicar con el servidor. Intente nuevamente.");
+    return null;
+  }
+
+  try {
+    return JSON.parse(texto);
+  } catch {
+    console.error("El servidor devolvió una respuesta que no es JSON:", {
+      url,
+      status: response.status,
+      respuesta: texto
+    });
+    alert("El servidor devolvió una respuesta inválida. Revise la consola para ver el detalle.");
+    return null;
+  }
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   cargarCompras();
@@ -94,10 +120,10 @@ async function cargarCompras() {
   const tbody = document.getElementById("tabla-compras");
   tbody.innerHTML = "";
 
-  const res = await fetch(
-    `${API_COMPRAS}listar.php?buscar=${encodeURIComponent(buscarCompras)}&pagina=${paginaCompras}&limite=10`
+  const json = await solicitarJSON(
+    `${API_COMPRAS}listar.php?buscar=${encodeURIComponent(buscarCompras)}&pagina=${paginaCompras}&limite=8`
   );
-  const json = await res.json();
+  if (!json) return;
 
   if (!json.ok) return;
 
@@ -109,7 +135,7 @@ async function cargarCompras() {
       <td>${Number(c.total).toFixed(2)}</td>
       <td>${c.usuario ?? "-"}</td>
       <td class="acciones">
-          <button class="action-btn edit" onclick="verCompra(${c.id})">👁️</button>
+          <button class="action-btn edit" data-permission="Leer" onclick="verCompra(${c.id})">👁️</button>
           <button class="action-btn delete" onclick="eliminarCompra(${c.id})">🗑️</button>
       </td>
     `;
@@ -128,8 +154,8 @@ async function cargarProveedores() {
   const select = document.getElementById("compra-proveedor");
   select.innerHTML = "";
 
-  const res = await fetch(API_PROVEEDORES + "listar.php");
-  const json = await res.json();
+  const json = await solicitarJSON(API_PROVEEDORES + "listar.php");
+  if (!json) return;
 
   if (json.status !== "success") return;
 
@@ -148,8 +174,8 @@ async function cargarProductosDetalle() {
   const select = document.getElementById("detalle-producto");
   select.innerHTML = "";
 
-  const res = await fetch(API_PRODUCTOS + "listar.php");
-  const json = await res.json();
+  const json = await solicitarJSON(API_PRODUCTOS + "listar.php");
+  if (!json) return;
 
 if (!json.ok && json.status !== "success") {
     console.error("Error productos:", json.error);
@@ -169,9 +195,20 @@ if (!json.ok && json.status !== "success") {
    FORMULARIO
 ============================ */
 function limpiarFormularioCompra() {
-  document.getElementById("compra-id").value = "";
-  document.getElementById("compra-fecha").value = new Date().toISOString().slice(0,16);
-  document.getElementById("compra-total").value = "0.00";
+    document.getElementById("compra-id").value = "";
+
+    const ahora = new Date();
+
+    const fechaLocal =
+        ahora.getFullYear() + "-" +
+        String(ahora.getMonth() + 1).padStart(2, "0") + "-" +
+        String(ahora.getDate()).padStart(2, "0") + "T" +
+        String(ahora.getHours()).padStart(2, "0") + ":" +
+        String(ahora.getMinutes()).padStart(2, "0");
+
+    document.getElementById("compra-fecha").value = fechaLocal;
+
+    document.getElementById("compra-total").value = "0.00";
 }
 
 /* ============================
@@ -181,35 +218,36 @@ function agregarDetalleDesdeModal() {
   const selectProd = document.getElementById("detalle-producto");
   const cantidad = parseInt(document.getElementById("detalle-cantidad").value || "0", 10);
   const costo = parseFloat(document.getElementById("detalle-costo").value || "0");
+  const id_producto = parseInt(selectProd.value, 10);
+  const id_almacen = parseInt(document.getElementById("detalle-almacen").value || "0", 10);
 
-  if (!selectProd.value || cantidad <= 0 || costo <= 0) {
+  if (!Number.isInteger(id_producto) || cantidad <= 0 || !Number.isFinite(costo) || costo <= 0) {
     alert("Complete producto, cantidad y costo.");
     return;
   }
 
-  const id_producto = parseInt(selectProd.value, 10);
+  if (!Number.isInteger(id_almacen) || id_almacen <= 0) {
+    alert("Debe seleccionar un almacén (Transporte o Depósito).");
+    return;
+  }
+
   const nombre = selectProd.options[selectProd.selectedIndex].text;
 
-  const existente = DETALLES_COMPRA.find(d => d.id_producto === id_producto);
+  const existente = DETALLES_COMPRA.find(
+    d => d.id_producto === id_producto && d.id_almacen === id_almacen
+  );
 
   if (existente) {
     existente.cantidad += cantidad;
     existente.costo_unitario = costo;
   } else {
-const id_almacen = parseInt(document.getElementById("detalle-almacen").value || "0", 10);
-
-if (id_almacen === 0) {
-  alert("Debe seleccionar un almacén (Transporte o Depósito).");
-  return;
-}
-
-DETALLES_COMPRA.push({
-  id_producto,
-  nombre,
-  cantidad,
-  costo_unitario: costo,
-  id_almacen
-});
+    DETALLES_COMPRA.push({
+      id_producto,
+      nombre,
+      cantidad,
+      costo_unitario: costo,
+      id_almacen
+    });
 
   }
 
@@ -266,50 +304,85 @@ async function guardarCompra() {
 
   formData.append("detalles", JSON.stringify(DETALLES_COMPRA));
 
-  const res = await fetch(API_COMPRAS + "crear.php", {
+  const json = await solicitarJSON(API_COMPRAS + "crear.php", {
     method: "POST",
     body: formData
   });
-
-  const json = await res.json();
+  if (!json) return;
 
   if (!json.ok) {
     alert("Error al guardar compra: " + json.error);
     return;
   }
 
-  alert("Compra registrada correctamente.");
+mostrarMensajeBonito("Compra registrada correctamente", "🛒");
+
   ocultarModal(document.getElementById("modal-compra"));
   cargarCompras();
 }
 
+
+function mostrarMensajeBonito(texto, icono = "✔️") {
+    const modal = document.getElementById("modal-mensaje");
+    const mensajeTexto = document.getElementById("mensaje-texto");
+    const mensajeIcono = document.getElementById("mensaje-icono");
+
+    mensajeTexto.textContent = texto;
+    mensajeIcono.textContent = icono;
+
+    modal.classList.remove("hidden");
+
+    document.getElementById("mensaje-btn").onclick = () => {
+        modal.classList.add("hidden");
+    };
+}
+function confirmarAccion(texto, callbackAceptar) {
+    const modal = document.getElementById("modal-confirmar");
+    const textoElem = document.getElementById("confirmar-texto");
+
+    textoElem.textContent = texto;
+    modal.classList.remove("hidden");
+
+    document.getElementById("confirmar-aceptar").onclick = () => {
+        modal.classList.add("hidden");
+        callbackAceptar(); // Ejecuta la acción real
+    };
+
+    document.getElementById("confirmar-cancelar").onclick = () => {
+        modal.classList.add("hidden");
+    };
+}
+
+
 /* ============================
    ELIMINAR COMPRA
 ============================ */
-async function eliminarCompra(id_compra) {
-  if (!confirm("¿Eliminar esta compra?")) return;
+function eliminarCompra(id_compra) {
+  confirmarAccion("¿Eliminar esta compra?", async () => {
+    const formData = new FormData();
+    formData.append("id", id_compra);
 
-  const formData = new FormData();
-  formData.append("id", id_compra);
+    const json = await solicitarJSON(API_COMPRAS + "eliminar.php", {
+        method: "POST",
+        body: formData
+    });
 
-  const res = await fetch(API_COMPRAS + "eliminar.php", {
-    method: "POST",
-    body: formData
+    if (!json) return;
+
+    if (!json.ok) {
+        mostrarMensajeBonito("Error al eliminar compra: " + json.error, "❌");
+        return;
+    }
+
+    mostrarMensajeBonito("Compra eliminada correctamente", "🗑️");
+    cargarCompras();
   });
-
-  const json = await res.json();
-
-  if (!json.ok) {
-    alert("Error al eliminar compra: " + json.error);
-    return;
-  }
-
-  cargarCompras();
 }
+
 async function verCompra(id) {
 
-    const res = await fetch(API_COMPRAS + "detalle.php?id=" + id);
-    const json = await res.json();
+    const json = await solicitarJSON(API_COMPRAS + "detalle.php?id=" + id);
+    if (!json) return;
 
     if (!json.ok || !json.compra) {
         alert("No se pudo cargar el detalle de la compra");
@@ -354,8 +427,8 @@ function cerrarModalCompra() {
    VER DETALLE
 ============================ */
 async function verDetalleCompra(id_compra) {
-  const res = await fetch(API_COMPRAS + "detalle.php?id=" + id_compra);
-  const json = await res.json();
+  const json = await solicitarJSON(API_COMPRAS + "detalle.php?id=" + id_compra);
+  if (!json) return;
 
   if (!json.ok) {
     alert("Error al obtener detalle: " + json.error);

@@ -130,8 +130,8 @@ try {
             $resProd = $stmtProd->get_result();
             $rowProd = $resProd->fetch_assoc();
 
-            $cant_min = intval($rowProd["cantidad_minima"]);
-            $cant_max = intval($rowProd["cantidad_maxima"]);
+            $cant_min = $rowProd ? intval($rowProd["cantidad_minima"]) : 0;
+            $cant_max = $rowProd ? intval($rowProd["cantidad_maxima"]) : 0;
 
             $sqlInsert = "INSERT INTO stock 
                           (id_producto, id_almacen, cantidad_actual, cantidad_minima, cantidad_maxima, estado)

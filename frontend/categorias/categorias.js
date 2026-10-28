@@ -113,7 +113,8 @@ async function guardarCategoria(e) {
 
     const formData = new FormData(document.getElementById("form-categoria"));
 
-    const archivo = formData.get("id") ? "actualizar.php" : "crear.php";
+    const esEdicion = Boolean(formData.get("id"));
+    const archivo = esEdicion ? "actualizar.php" : "crear.php";
 
     const res = await fetch(API_CATEGORIAS + archivo, {
         method: "POST",
@@ -129,6 +130,10 @@ async function guardarCategoria(e) {
 
     cerrarModal();
     cargarCategorias();
+    mostrarMensajeBonito(
+        esEdicion ? "Categoría actualizada correctamente" : "Categoría registrada correctamente",
+        "🏷️"
+    );
 }
 
 
@@ -160,24 +165,25 @@ document.getElementById("modal-categoria").classList.remove("hidden");
    ELIMINAR CATEGORÍA
 ============================ */
 async function eliminarCategoria(id) {
-    if (!confirm("¿Eliminar categoría?")) return;
+    confirmarAccion("¿Eliminar esta categoría?", async () => {
+        const fd = new FormData();
+        fd.append("id", id);
 
-    const fd = new FormData();
-    fd.append("id", id);
+        const res = await fetch(API_CATEGORIAS + "eliminar.php", {
+            method: "POST",
+            body: fd
+        });
 
-    const res = await fetch(API_CATEGORIAS + "eliminar.php", {
-        method: "POST",
-        body: fd
-    });
+        const json = await res.json();
 
-    const json = await res.json();
+        if (json.status !== "success") {
+            alert("Error: " + json.msg);
+            return;
+        }
 
-    if (json.status !== "success") {
-        alert("Error: " + json.msg);
-        return;
-    }
-
-    cargarCategorias();
+        cargarCategorias();
+        mostrarMensajeBonito("Categoría eliminada correctamente", "🗑️");
+    }, "Sí, eliminar");
 }
 
 document.getElementById("btn-mini-logout").addEventListener("click", () => {

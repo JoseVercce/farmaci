@@ -1,23 +1,31 @@
-const API_FACT = "/berti/backend/ventas/";
-const API_CLI = "/berti/backend/clientes/";
-const API_PROD = "/berti/backend/productos/";
+const API_FACT = "../../backend/ventas/";
+const API_CLI = "../../backend/clientes/";
+const API_PROD = "../../backend/productos/";
+const API_METODO_PAGO = "../../backend/metodo_pago/";
 const TASA_IVA = 0.16; // 16% de IVA
+const STORAGE_FACTURA_EN_CURSO = "pos_factura_en_curso";
+const STORAGE_METODO_PAGO = "pos_metodo_pago";
 
 let modalData = []; 
 let modalTipo = ''; 
+let porcentajeDescuentoGlobal = 0; // NUEVO: Memoria del descuento global
+let metodosPagoCargados = false;
 
 document.addEventListener("DOMContentLoaded", () => {
     // 1. Cargar datos iniciales
     actualizarCorrelativo();
     cargarCarritoDeStorage();
+    cargarMetodosPago();
+    document.getElementById('pos-metodo-pago').addEventListener('change', guardarCarritoEnStorage);
 
     // 2. Conectar botones del panel lateral
     document.querySelector('.btn-guardar').addEventListener('click', guardarFacturaEnEspera);
     document.querySelector('.btn-cargar').addEventListener('click', abrirModalCargar);
-    document.querySelector('.pos-actions .btn-eliminar').addEventListener('click', abrirModalEliminar);
+    document.querySelector('.pos-actions .btn-eliminarse').addEventListener('click', abrirModalEliminar);
+    document.querySelector('.btn-descuento').addEventListener('click', window.abrirModalDescuento); // NUEVO: Conecta el botón amarillo
 
-    // 3. Conectar botón Totalizar (APUNTANDO SOLO A PROCESAR VENTA, SIN ALERTAS VIEJAS)
-    document.querySelector('.btn-totalizar').addEventListener('click', procesarVenta);
+    // 3. Conectar botón Totalizar
+    document.querySelector('.btn-totalizar').addEventListener('click', abrirModalMetodoPago);
 
     // 4. Configurar tecla Enter para los buscadores
     document.getElementById('pos-buscar-producto').addEventListener('keypress', function(e) {
@@ -27,10 +35,42 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    document.getElementById('pos-buscar-cliente').addEventListener('keypress', function(e) {
+    // ESTE DEBE SER EL ÚNICO EVENTO DE "ENTER" PARA EL CLIENTE
+    document.getElementById('pos-buscar-cliente').addEventListener('keypress', async function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
-            abrirModalBusqueda('Cliente');
+            const valorIngresado = this.value.trim();
+
+            if (valorIngresado === '') {
+                abrirModalBusqueda('Cliente');
+                return;
+            }
+
+            try {
+                const res = await fetch(API_CLI + "listar_todo.php");
+                const json = await res.json();
+                const clientes = json.data || [];
+
+                const clienteEncontrado = clientes.find(c => 
+                    (c.cedula && c.cedula.toLowerCase() === valorIngresado.toLowerCase()) || 
+                    (c.documento && c.documento.toLowerCase() === valorIngresado.toLowerCase())
+                );
+
+                if (clienteEncontrado) {
+                    // Seleccionamos al cliente y NO abrimos el modal
+                    this.value = clienteEncontrado.nombre;
+                    this.dataset.id = clienteEncontrado.id;
+                    guardarCarritoEnStorage();
+                    
+                    // Saltamos al buscador de productos
+                    document.getElementById('pos-buscar-producto').focus();
+                } else {
+                    // Solo abrimos el modal si la cédula no existe
+                    abrirModalBusqueda('Cliente');
+                }
+            } catch (error) {
+                abrirModalBusqueda('Cliente');
+            }
         }
     });
 
@@ -39,6 +79,12 @@ document.addEventListener("DOMContentLoaded", () => {
         renderizarTablaModal(e.target.value);
     });
 });
+
+function cerrarModalBusqueda() {
+  const modal = document.getElementById('modal-busqueda-pos');
+  modal.classList.add('hidden');
+  modal.style.display = 'none';
+}
 
 async function abrirModalBusqueda(tipo) {
   const inputCliente = document.getElementById('pos-buscar-cliente');
@@ -56,14 +102,25 @@ async function abrirModalBusqueda(tipo) {
 
   const modal = document.getElementById('modal-busqueda-pos');
   const titulo = document.getElementById('modal-busqueda-titulo');
-  const thead = document.getElementById('modal-busqueda-head'); // Seleccionamos la cabecera
+  const thead = document.getElementById('modal-busqueda-head'); 
   const tbody = document.getElementById('modal-busqueda-body');
   const inputFiltro = document.getElementById('input-filtro-modal');
   
   modalTipo = tipo;
-  titulo.textContent = `Buscar ${tipo}`;
   
-  // Cambiamos las columnas dinámicamente
+  if (tipo === 'Cliente') {
+      titulo.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding-bottom: 5px;">
+            <span style="font-size: 1.4rem; font-weight: bold; color: #343a40;">Buscar Cliente</span>
+            <button type="button" style="background-color: #198754; color: white; border: none; padding: 8px 18px; font-size: 1rem; font-weight: bold; border-radius: 5px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" onclick="window.irACrearCliente()">
+                + Crear Nuevo Cliente
+            </button>
+        </div>
+      `;
+  } else {
+      titulo.innerHTML = `<span style="font-size: 1.4rem; font-weight: bold; color: #343a40;">Buscar Producto</span>`;
+  }
+  
   if (tipo === 'Producto') {
       thead.innerHTML = `
           <tr>
@@ -102,83 +159,92 @@ async function abrirModalBusqueda(tipo) {
   setTimeout(() => inputFiltro.focus(), 100);
 }
 
-function cerrarModalBusqueda() {
-  const modal = document.getElementById('modal-busqueda-pos');
-  modal.classList.add('hidden');
-  modal.style.display = 'none';
-}
-
-async function cargarProductosModal() {
-  try {
-    const res = await fetch(API_PROD + "listar.php"); 
-    const json = await res.json();
-    modalData = json.data || [];
-  } catch (error) {
-    document.getElementById('modal-busqueda-body').innerHTML = '<tr><td colspan="3" class="text-center text-danger">Error de base de datos</td></tr>';
-  }
-}
-
 async function cargarClientesModal() {
+  modalData = []; // 1. Vaciamos la memoria vieja obligatoriamente
   try {
     const res = await fetch(API_CLI + "listar_todo.php"); 
     const json = await res.json();
     modalData = json.data || [];
   } catch (error) {
-    document.getElementById('modal-busqueda-body').innerHTML = '<tr><td colspan="3" class="text-center text-danger">Error de base de datos</td></tr>';
+    console.error(error);
+    alert("Error de conexión al cargar los clientes.");
   }
 }
 
+async function cargarProductosModal() {
+  modalData = []; // 1. Vaciamos la memoria vieja obligatoriamente
+  try {
+    const res = await fetch(API_PROD + "listar_todo.php", { cache: "no-store" });
+    const json = await res.json();
+    if (!res.ok || !json.ok) {
+      throw new Error(json.msg || "No se pudieron cargar los productos.");
+    }
+    modalData = json.data || [];
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "Error de conexión al cargar los productos.");
+  }
+}
 function renderizarTablaModal(filtro = "") {
   const tbody = document.getElementById('modal-busqueda-body');
   tbody.innerHTML = '';
   
   const dataFiltrada = modalData.filter(item => {
     const textoComparar = modalTipo === 'Producto' 
-        ? `${item.codigo || ''} ${item.nombre}`.toLowerCase()
-        : `${item.cedula || item.documento || ''} ${item.nombre}`.toLowerCase();
+        ? `${item.codigo || item.id || ''} ${item.nombre}`.toLowerCase()
+        : `${item.cedula || item.documento || item.id || ''} ${item.nombre}`.toLowerCase();
     return textoComparar.includes(filtro.toLowerCase());
   });
 
   if (dataFiltrada.length === 0) {
     const colSpan = modalTipo === 'Producto' ? 4 : 2;
-    tbody.innerHTML = `<tr><td colspan="${colSpan}" class="text-center" style="padding: 20px;">Sin resultados</td></tr>`;
+    
+    if (modalTipo === 'Cliente') {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="${colSpan}" class="text-center" style="padding: 40px;">
+                    <span style="color: #dc3545; font-size: 1.2rem; font-weight: bold;">Cliente no encontrado</span><br>
+                    <span style="color: #6c757d; font-size: 1rem; display: block; margin-top: 10px;">La cédula escaneada o el nombre no coincide con ningún registro.</span><br>
+                    <button class="btn-primary" style="margin-top: 15px; padding: 10px 25px; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; color: white;" onclick="window.irACrearCliente()">
+                        Crear Nuevo Cliente
+                    </button>
+                </td>
+            </tr>
+        `;
+    } else {
+        tbody.innerHTML = `<tr><td colspan="${colSpan}" class="text-center" style="padding: 20px;">Sin resultados</td></tr>`;
+    }
     return;
   }
 
-  // Usamos el index para saber si la fila es par o impar
   dataFiltrada.forEach((item, index) => {
     const tr = document.createElement('tr');
     tr.style.cursor = "pointer";
     
-    // EFECTO CEBRA: Fila par = blanco, Fila impar = gris clarito
     const colorBase = index % 2 === 0 ? "#ffffff" : "#f1f3f5";
     tr.style.backgroundColor = colorBase;
     
-    // Al pasar el ratón se pone gris oscuro, y al quitarlo vuelve a su color base (cebra)
     tr.onmouseenter = () => tr.style.backgroundColor = "#e2e6ea";
     tr.onmouseleave = () => tr.style.backgroundColor = colorBase;
 
     if (modalTipo === 'Producto') {
       const tieneIva = item.aplica_iva !== undefined ? (item.aplica_iva == 1 || item.aplica_iva == true) : true; 
-      
-      // Verificamos el stock. Puede venir como 'stock' o 'cantidad' desde tu BD
       const stock = item.stock || item.cantidad || 0; 
-      // Le ponemos color verde si hay stock, o rojo si está en cero
       const colorStock = stock > 0 ? '#198754' : '#dc3545';
 
-      tr.ondblclick = () => seleccionarProducto(item.id_producto, item.nombre.replace(/'/g, "\\'"), item.precio, tieneIva);
+      tr.ondblclick = () => seleccionarProducto(item.id, item.nombre.replace(/'/g, "\\'"), item.precio, tieneIva);
 
       tr.innerHTML = `
-        <td style="font-size: 1.1rem; padding: 12px;">${item.codigo || item.id_producto}</td>
+        <td style="font-size: 1.1rem; padding: 12px;">${item.codigo || item.id}</td>
         <td style="font-size: 1.1rem; padding: 12px;">${item.nombre}</td>
         <td class="text-center" style="font-size: 1.1rem; padding: 12px; font-weight: bold; color: ${colorStock};">${stock}</td>
         <td class="text-right" style="font-size: 1.1rem; padding: 12px; font-weight: bold;">$${parseFloat(item.precio).toFixed(2)}</td>
       `;
     } else {
-      tr.ondblclick = () => seleccionarCliente(item.id_cliente, item.nombre.replace(/'/g, "\\'"));
+      tr.ondblclick = () => seleccionarCliente(item.id, item.nombre.replace(/'/g, "\\'"));
 
       tr.innerHTML = `
-        <td style="font-size: 1.1rem; padding: 12px;">${item.cedula || item.documento || item.id_cliente}</td>
+        <td style="font-size: 1.1rem; padding: 12px;">${item.cedula || item.documento || item.id}</td>
         <td style="font-size: 1.1rem; padding: 12px;">${item.nombre}</td>
       `;
     }
@@ -197,6 +263,7 @@ function seleccionarCliente(id, nombre) {
 function seleccionarProducto(id, nombre, precio, aplicaIva) {
   const tbody = document.getElementById('pos-detalle-body');
   const tr = document.createElement('tr');
+  const aplicaIvaProducto = aplicaIva !== false;
   
   tr.innerHTML = `
     <td data-nombre="${nombre}">
@@ -206,16 +273,13 @@ function seleccionarProducto(id, nombre, precio, aplicaIva) {
     <td class="text-center">
       <input type="number" class="pos-input-qty" value="1" min="1" onchange="actualizarSubtotalFilaPOS(this)" onkeyup="actualizarSubtotalFilaPOS(this)">
     </td>
-    <td class="text-center pos-iva-txt" data-aplica="${aplicaIva}">
-      <span style="font-size:0.85rem; color:#6c757d; font-weight:bold;">${aplicaIva ? 'SÍ (16%)' : 'NO (E)'}</span><br>
-      <small class="monto-iva-fila" style="color:#dc3545; font-weight:bold;">$0.00</small>
-    </td>
+    ${crearCeldaIva(aplicaIvaProducto)}
     <td class="text-right">
        $<input type="number" class="pos-input-precio" value="${precio}" step="0.01" style="width:70px; text-align:right; border:none; background:transparent; font-size:1rem;" onchange="actualizarSubtotalFilaPOS(this)" onkeyup="actualizarSubtotalFilaPOS(this)">
     </td>
     <td class="text-right pos-subtotal-txt">$0.00</td>
     <td class="text-center">
-        <button class="btn-eliminar" style="padding:6px 10px; font-size:12px;" onclick="eliminarFilaPOS(this)">X</button>
+        <button class="btn-eliminarse" style="padding:6px 10px; font-size:12px;" onclick="eliminarFilaPOS(this)">X</button>
     </td>
   `;
   
@@ -226,6 +290,27 @@ function seleccionarProducto(id, nombre, precio, aplicaIva) {
   actualizarSubtotalFilaPOS(tr.querySelector('.pos-input-qty'));
 }
 
+function crearCeldaIva(aplicaIva) {
+  const checked = aplicaIva ? 'checked' : '';
+  return `
+    <td class="text-center pos-iva-txt" data-aplica="${aplicaIva}">
+      <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;">
+        <input type="checkbox" class="pos-iva-checkbox" ${checked}
+          onchange="actualizarIvaFilaPOS(this)"
+          aria-label="Aplicar IVA de ${TASA_IVA * 100}% a este producto">
+        Aplicar IVA (${TASA_IVA * 100}%)
+      </label><br>
+      <small class="monto-iva-fila" style="color:#dc3545;font-weight:bold;">$0.00</small>
+    </td>
+  `;
+}
+
+function actualizarIvaFilaPOS(checkbox) {
+  const celdaIva = checkbox.closest('.pos-iva-txt');
+  celdaIva.dataset.aplica = String(checkbox.checked);
+  actualizarSubtotalFilaPOS(checkbox);
+}
+
 function actualizarSubtotalFilaPOS(elemento) {
   const tr = elemento.closest('tr');
   const cant = parseFloat(tr.querySelector('.pos-input-qty').value) || 0;
@@ -233,8 +318,8 @@ function actualizarSubtotalFilaPOS(elemento) {
   const aplicaIva = tr.querySelector('.pos-iva-txt').dataset.aplica === 'true';
   
   const baseFila = cant * precio;
-  const montoIvaFila = aplicaIva ? (baseFila * TASA_IVA) : 0;
-  const totalFila = baseFila + montoIvaFila;
+  const montoIvaFila = aplicaIva ? redondearMoneda(baseFila * TASA_IVA) : 0;
+  const totalFila = redondearMoneda(baseFila + montoIvaFila);
   
   tr.querySelector('.monto-iva-fila').textContent = `+$${montoIvaFila.toFixed(2)}`;
   tr.querySelector('.pos-subtotal-txt').textContent = `$${totalFila.toFixed(2)}`;
@@ -254,24 +339,36 @@ function recalcularTotalPOS() {
   let baseTotal = 0;
   let ivaTotal = 0;
   let granTotal = 0;
+  let descuentoTotalMonto = 0;
   
   filas.forEach(tr => {
     const cant = parseFloat(tr.querySelector('.pos-input-qty').value) || 0;
     const precio = parseFloat(tr.querySelector('.pos-input-precio').value) || 0;
     const aplicaIva = tr.querySelector('.pos-iva-txt').dataset.aplica === 'true';
     
-    const baseFila = cant * precio;
-    const montoIva = aplicaIva ? (baseFila * TASA_IVA) : 0;
+    // Matemática fiscal: aplicar descuento a la base ANTES del IVA
+    const baseOriginalFila = cant * precio;
+    const montoDescuentoFila = redondearMoneda(baseOriginalFila * (porcentajeDescuentoGlobal / 100));
+    const baseConDescuento = redondearMoneda(baseOriginalFila - montoDescuentoFila);
     
-    baseTotal += baseFila;
+    const montoIva = aplicaIva ? redondearMoneda(baseConDescuento * TASA_IVA) : 0;
+    
+    baseTotal += baseConDescuento; 
     ivaTotal += montoIva;
-    granTotal += (baseFila + montoIva);
+    descuentoTotalMonto += montoDescuentoFila;
+    granTotal += (baseConDescuento + montoIva);
   });
   
+  let textoDescuento = '';
+  if (porcentajeDescuentoGlobal > 0) {
+      textoDescuento = `<div style="color: #ffc107; font-weight: bold;">Descuento (${porcentajeDescuentoGlobal}%): -$${descuentoTotalMonto.toFixed(2)}</div>`;
+  }
+
   document.querySelector('.btn-totalizar').innerHTML = `
     <div style="font-size:0.9rem; font-weight:normal; margin-bottom:5px; line-height:1.2; text-align:left; padding: 0 10px;">
-        Subtotal: $${baseTotal.toFixed(2)} <br> 
-        IVA (16%): $${ivaTotal.toFixed(2)}
+        Subtotal: $${(baseTotal + descuentoTotalMonto).toFixed(2)} <br> 
+        ${textoDescuento}
+        IVA (${TASA_IVA * 100}%): $${ivaTotal.toFixed(2)}
     </div>
     <div style="border-top: 1px solid rgba(255,255,255,0.3); margin: 5px 0;"></div>
     TOTALIZAR <br> <strong style="font-size:1.4rem;">$${granTotal.toFixed(2)}</strong>
@@ -293,6 +390,33 @@ function recalcularTotalPOS() {
   }
 }
 
+// NUEVAS FUNCIONES PARA EL MODAL DE DESCUENTO
+window.abrirModalDescuento = function() {
+    const modal = document.getElementById('modal-descuento');
+    document.getElementById('input-desc-global').value = porcentajeDescuentoGlobal;
+    modal.style.display = 'flex';
+    setTimeout(() => {
+        const input = document.getElementById('input-desc-global');
+        input.focus();
+        input.select();
+    }, 100);
+};
+
+window.cerrarModalDescuento = function() {
+    document.getElementById('modal-descuento').style.display = 'none';
+};
+
+window.confirmarDescuento = function() {
+    const desc = parseFloat(document.getElementById('input-desc-global').value) || 0;
+    if (desc < 0 || desc > 100) {
+        mostrarAlertaPersonalizada("El descuento debe ser un número entre 0 y 100.");
+        return;
+    }
+    porcentajeDescuentoGlobal = desc;
+    window.cerrarModalDescuento();
+    recalcularTotalPOS();
+};
+
 function cargarCarritoDeStorage() {
   const carritoGuardado = localStorage.getItem('pos_carrito');
   const clienteGuardado = localStorage.getItem('pos_cliente');
@@ -313,9 +437,13 @@ function cargarCarritoDeStorage() {
     
     carrito.forEach(item => {
       const tr = document.createElement('tr');
-      const aplicaIva = item.aplicaIva !== undefined ? item.aplicaIva : true;
-      const montoIvaFila = aplicaIva ? (item.cantidad * item.precio * TASA_IVA) : 0;
-      const totalFila = (item.cantidad * item.precio) + montoIvaFila;
+      const aplicaIva = item.aplicaIva !== undefined
+        ? item.aplicaIva
+        : item.aplica_iva !== undefined
+          ? Boolean(Number(item.aplica_iva))
+          : true;
+      const montoIvaFila = aplicaIva ? redondearMoneda(item.cantidad * item.precio * TASA_IVA) : 0;
+      const totalFila = redondearMoneda((item.cantidad * item.precio) + montoIvaFila);
 
       tr.innerHTML = `
         <td data-nombre="${item.nombre}">
@@ -325,16 +453,13 @@ function cargarCarritoDeStorage() {
         <td class="text-center">
           <input type="number" class="pos-input-qty" value="${item.cantidad}" min="1" onchange="actualizarSubtotalFilaPOS(this)" onkeyup="actualizarSubtotalFilaPOS(this)">
         </td>
-        <td class="text-center pos-iva-txt" data-aplica="${aplicaIva}">
-            <span style="font-size:0.85rem; color:#6c757d; font-weight:bold;">${aplicaIva ? 'SÍ (16%)' : 'NO (E)'}</span><br>
-            <small class="monto-iva-fila" style="color:#dc3545; font-weight:bold;">+$${montoIvaFila.toFixed(2)}</small>
-        </td>
+        ${crearCeldaIva(aplicaIva)}
         <td class="text-right">
            $<input type="number" class="pos-input-precio" value="${item.precio}" step="0.01" style="width:70px; text-align:right; border:none; background:transparent; font-size:1rem;" onchange="actualizarSubtotalFilaPOS(this)" onkeyup="actualizarSubtotalFilaPOS(this)">
         </td>
         <td class="text-right pos-subtotal-txt">$${totalFila.toFixed(2)}</td>
         <td class="text-center">
-            <button class="btn-eliminar" style="padding:6px 10px; font-size:12px;" onclick="eliminarFilaPOS(this)">X</button>
+            <button class="btn-eliminarse" style="padding:6px 10px; font-size:12px;" onclick="eliminarFilaPOS(this)">X</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -346,10 +471,14 @@ function cargarCarritoDeStorage() {
 function limpiarCarritoPOS() {
   localStorage.removeItem('pos_carrito');
   localStorage.removeItem('pos_cliente');
+  localStorage.removeItem(STORAGE_FACTURA_EN_CURSO);
+  localStorage.removeItem(STORAGE_METODO_PAGO);
   document.getElementById('pos-detalle-body').innerHTML = '';
   document.getElementById('pos-buscar-cliente').value = '';
   document.getElementById('pos-buscar-cliente').dataset.id = '';
   document.getElementById('pos-buscar-producto').value = '';
+  document.getElementById('pos-metodo-pago').value = '';
+  porcentajeDescuentoGlobal = 0; // NUEVO: resetear descuento
   recalcularTotalPOS();
 }
 
@@ -377,11 +506,17 @@ function guardarFacturaEnEspera() {
             nombre: tr.querySelector('td').dataset.nombre,
             cantidad: tr.querySelector('.pos-input-qty').value,
             precio: tr.querySelector('.pos-input-precio').value,
-            aplicaIva: tr.querySelector('.pos-iva-txt').dataset.aplica === 'true'
+            aplicaIva: tr.querySelector('.pos-iva-checkbox').checked
         });
     });
 
     let guardadas = JSON.parse(localStorage.getItem('pos_facturas_guardadas')) || [];
+    const facturaEnCurso = localStorage.getItem(STORAGE_FACTURA_EN_CURSO);
+    if (facturaEnCurso) {
+        guardadas = guardadas.filter(factura =>
+            String(factura.id_guardado) !== facturaEnCurso
+        );
+    }
     
     guardadas.push({
         id_guardado: Date.now(), 
@@ -389,7 +524,9 @@ function guardarFacturaEnEspera() {
         clienteNombre: clienteNombre,
         clienteId: clienteId,
         total: total,
-        items: carrito
+        items: carrito,
+        descuento: porcentajeDescuentoGlobal, // Guardamos el descuento
+        metodoPagoId: document.getElementById('pos-metodo-pago').value
     });
 
     localStorage.setItem('pos_facturas_guardadas', JSON.stringify(guardadas));
@@ -415,7 +552,7 @@ function abrirModalCargar() {
                 <td class="text-right">$${parseFloat(fact.total).toFixed(2)}</td>
                 <td class="text-center">
                     <button class="btn-primary" style="padding: 6px 10px; margin-right: 5px;" onclick="cargarFacturaGuardada(${fact.id_guardado})">Cargar</button>
-                    <button class="btn-eliminar" style="padding: 6px 10px;" onclick="eliminarFacturaGuardada(${fact.id_guardado})">X</button>
+                    <button class="btn-eliminarse" style="padding: 6px 10px;" onclick="eliminarFacturaGuardada(${fact.id_guardado})">X</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -445,15 +582,25 @@ function cargarFacturaGuardada(idGuardado) {
 
     const inputCliente = document.getElementById('pos-buscar-cliente');
     inputCliente.value = factura.clienteNombre !== "Consumidor Final" ? factura.clienteNombre : "";
-    inputCliente.dataset.id = factura.clienteId;
+    inputCliente.dataset.id = factura.clienteId || "";
+    document.getElementById('pos-metodo-pago').value = factura.metodoPagoId || "";
+    localStorage.setItem(STORAGE_METODO_PAGO, factura.metodoPagoId || "");
+    
+    // Restauramos el descuento guardado
+    porcentajeDescuentoGlobal = factura.descuento || 0;
 
     const tbody = document.getElementById('pos-detalle-body');
     tbody.innerHTML = ''; 
 
     factura.items.forEach(item => {
         const tr = document.createElement('tr');
-        const montoIvaFila = item.aplicaIva ? (item.cantidad * item.precio * TASA_IVA) : 0;
-        const totalFila = (item.cantidad * item.precio) + montoIvaFila;
+        const aplicaIva = item.aplicaIva !== undefined
+            ? item.aplicaIva
+            : item.aplica_iva !== undefined
+                ? Boolean(Number(item.aplica_iva))
+                : true;
+        const montoIvaFila = aplicaIva ? redondearMoneda(item.cantidad * item.precio * TASA_IVA) : 0;
+        const totalFila = redondearMoneda((item.cantidad * item.precio) + montoIvaFila);
 
         tr.innerHTML = `
             <td data-nombre="${item.nombre}">
@@ -463,25 +610,23 @@ function cargarFacturaGuardada(idGuardado) {
             <td class="text-center">
                 <input type="number" class="pos-input-qty" value="${item.cantidad}" min="1" onchange="actualizarSubtotalFilaPOS(this)" onkeyup="actualizarSubtotalFilaPOS(this)">
             </td>
-            <td class="text-center pos-iva-txt" data-aplica="${item.aplicaIva}">
-                <span style="font-size:0.85rem; color:#6c757d; font-weight:bold;">${item.aplicaIva ? 'SÍ (16%)' : 'NO (E)'}</span><br>
-                <small class="monto-iva-fila" style="color:#dc3545; font-weight:bold;">+$${montoIvaFila.toFixed(2)}</small>
-            </td>
+            ${crearCeldaIva(aplicaIva)}
             <td class="text-right">
                  $<input type="number" class="pos-input-precio" value="${item.precio}" step="0.01" style="width:70px; text-align:right; border:none; background:transparent; font-size:1rem;" onchange="actualizarSubtotalFilaPOS(this)" onkeyup="actualizarSubtotalFilaPOS(this)">
             </td>
             <td class="text-right pos-subtotal-txt">$${totalFila.toFixed(2)}</td>
             <td class="text-center">
-                    <button class="btn-eliminar" style="padding:6px 10px; font-size:12px;" onclick="eliminarFilaPOS(this)">X</button>
+                    <button class="btn-eliminarse" style="padding:6px 10px; font-size:12px;" onclick="eliminarFilaPOS(this)">X</button>
             </td>
         `;
         tbody.appendChild(tr);
     });
 
-    eliminarFacturaGuardada(idGuardado, false); 
+    localStorage.setItem(STORAGE_FACTURA_EN_CURSO, String(idGuardado));
     cerrarModalCargar();
     recalcularTotalPOS();
-    guardarCarritoEnStorage(); 
+    guardarCarritoEnStorage();
+    mostrarAlertaPersonalizada("Factura cargada. Pulsa TOTALIZAR FACTURA para registrarla en el historial.");
 }
 
 function eliminarFacturaGuardada(idGuardado, recargarTabla = true) {
@@ -496,8 +641,10 @@ function eliminarFacturaGuardada(idGuardado, recargarTabla = true) {
 
 function abrirModalEliminar() {
     const filas = document.querySelectorAll('#pos-detalle-body tr');
-    if (filas.length === 0) {
-        mostrarAlertaPersonalizada("La factura ya está vacía.");
+    const clienteInput = document.getElementById('pos-buscar-cliente').value.trim();
+
+    if (filas.length === 0 && clienteInput === '') {
+        mostrarAlertaPersonalizada("La factura ya está completamente vacía.");
         return;
     }
 
@@ -541,28 +688,33 @@ async function procesarVenta() {
         return;
     }
 
-    // Extraer el total de la interfaz
     const textoTotal = document.querySelector('.btn-totalizar strong').textContent.replace('$', '');
     const total = parseFloat(textoTotal) || 0;
 
-    // Obtener datos del cliente
     const clienteInput = document.getElementById('pos-buscar-cliente');
     const clienteId = clienteInput.dataset.id || null;
+    const metodoPagoId = document.getElementById('pos-metodo-pago').value;
+    if (!metodoPagoId) {
+        mostrarAlertaPersonalizada("Selecciona el método de pago antes de totalizar la factura.");
+        return;
+    }
 
-    // Armar el carrito
     const carrito = [];
     filas.forEach(tr => {
         carrito.push({
             id: tr.querySelector('.pos-prod-id').value,
             cantidad: tr.querySelector('.pos-input-qty').value,
-            precio: tr.querySelector('.pos-input-precio').value
+            precio: tr.querySelector('.pos-input-precio').value,
+            aplica_iva: tr.querySelector('.pos-iva-checkbox').checked
         });
     });
 
-    // Deshabilitar el botón temporalmente para evitar dobles clics
     const btnTotalizar = document.querySelector('.btn-totalizar');
+    const btnConfirmarVenta = document.getElementById('btn-confirmar-venta');
     btnTotalizar.disabled = true;
     btnTotalizar.style.opacity = '0.7';
+    btnConfirmarVenta.disabled = true;
+    btnConfirmarVenta.textContent = 'Procesando...';
 
     try {
         const respuesta = await fetch(API_FACT + "procesar_venta.php", {
@@ -570,7 +722,9 @@ async function procesarVenta() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 cliente_id: clienteId,
+                metodo_pago_id: metodoPagoId,
                 total: total,
+                descuento: porcentajeDescuentoGlobal, // Enviamos el descuento al servidor
                 items: carrito
             })
         });
@@ -578,19 +732,65 @@ async function procesarVenta() {
         const data = await respuesta.json();
 
         if (data.ok) {
+            cerrarModalMetodoPago();
             mostrarAlertaPersonalizada(`¡Venta procesada exitosamente! Factura: ${data.numero_factura}`);
-            limpiarCarritoPOS(); // Limpiamos la pantalla para el siguiente cliente
+            eliminarFacturaEnEsperaProcesada();
+            limpiarCarritoPOS(); 
             actualizarCorrelativo();
         } else {
-            mostrarAlertaPersonalizada("Error: " + data.msg);
+            mostrarAlertaPersonalizada("Error: " + (data.msg || "No se pudo procesar la venta."));
         }
     } catch (error) {
-        mostrarAlertaPersonalizada("Error de conexión al procesar la venta.");
+        console.error("Error al procesar la venta:", error);
+        mostrarAlertaPersonalizada("No se recibió confirmación del servidor. La factura permanece guardada; verifica el historial antes de reintentar para evitar duplicados.");
     } finally {
-        // Volver a habilitar el botón
         btnTotalizar.disabled = false;
         btnTotalizar.style.opacity = '1';
+        btnConfirmarVenta.disabled = false;
+        btnConfirmarVenta.textContent = 'Confirmar y registrar';
     }
+}
+
+function abrirModalMetodoPago() {
+    const filas = document.querySelectorAll('#pos-detalle-body tr');
+    if (filas.length === 0) {
+        mostrarAlertaPersonalizada("No hay productos en la factura para totalizar.");
+        return;
+    }
+
+    const total = document.querySelector('.btn-totalizar strong').textContent;
+    document.getElementById('modal-total-pago').textContent = total;
+    const modal = document.getElementById('modal-metodo-pago');
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    document.getElementById('pos-metodo-pago').focus();
+}
+
+function cerrarModalMetodoPago() {
+    const modal = document.getElementById('modal-metodo-pago');
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+}
+
+function confirmarMetodoPago() {
+    const metodoPago = document.getElementById('pos-metodo-pago');
+    if (!metodoPago.value) {
+        mostrarAlertaPersonalizada("Selecciona el método de pago para continuar.");
+        return;
+    }
+    guardarCarritoEnStorage();
+    procesarVenta();
+}
+
+function eliminarFacturaEnEsperaProcesada() {
+    const idGuardado = localStorage.getItem(STORAGE_FACTURA_EN_CURSO);
+    if (!idGuardado) return;
+
+    const guardadas = JSON.parse(localStorage.getItem('pos_facturas_guardadas')) || [];
+    const pendientes = guardadas.filter(factura =>
+        String(factura.id_guardado) !== idGuardado
+    );
+    localStorage.setItem('pos_facturas_guardadas', JSON.stringify(pendientes));
 }
 
 function guardarCarritoEnStorage() {
@@ -602,7 +802,7 @@ function guardarCarritoEnStorage() {
       nombre: tr.querySelector('td').dataset.nombre,
       cantidad: tr.querySelector('.pos-input-qty').value,
       precio: tr.querySelector('.pos-input-precio').value,
-      aplicaIva: tr.querySelector('.pos-iva-txt').dataset.aplica === 'true'
+      aplicaIva: tr.querySelector('.pos-iva-checkbox').checked
     });
   });
   
@@ -613,6 +813,47 @@ function guardarCarritoEnStorage() {
   
   localStorage.setItem('pos_carrito', JSON.stringify(carrito));
   localStorage.setItem('pos_cliente', JSON.stringify(cliente));
+  const metodoPago = document.getElementById('pos-metodo-pago');
+  if (metodoPago && metodosPagoCargados) {
+    localStorage.setItem(STORAGE_METODO_PAGO, metodoPago.value);
+  }
+}
+
+async function cargarMetodosPago() {
+  const select = document.getElementById('pos-metodo-pago');
+  try {
+    const respuesta = await fetch(API_METODO_PAGO + "listar.php", {
+      credentials: "same-origin",
+      headers: { Accept: "application/json" }
+    });
+    const resultado = await respuesta.json();
+    if (!respuesta.ok || resultado.status !== "success" || !Array.isArray(resultado.data)) {
+      throw new Error(resultado.msg || "No se pudieron cargar los métodos de pago.");
+    }
+
+    window.cerrarModalMetodoPago = cerrarModalMetodoPago;
+    window.confirmarMetodoPago = confirmarMetodoPago;
+
+    select.replaceChildren(new Option("Seleccione un método de pago", ""));
+    resultado.data.forEach((metodo) => {
+      select.add(new Option(metodo.nombre, metodo.id));
+    });
+
+    const metodoGuardado = localStorage.getItem(STORAGE_METODO_PAGO);
+    if (metodoGuardado && Array.from(select.options).some(opcion => opcion.value === metodoGuardado)) {
+      select.value = metodoGuardado;
+    }
+    metodosPagoCargados = true;
+    guardarCarritoEnStorage();
+  } catch (error) {
+    console.error("Error al cargar los métodos de pago:", error);
+    select.replaceChildren(new Option("No se pudieron cargar los métodos", ""));
+    mostrarAlertaPersonalizada(error.message || "Error al cargar los métodos de pago.");
+  }
+}
+
+function redondearMoneda(valor) {
+  return Math.round((valor + Number.EPSILON) * 100) / 100;
 }
 
 async function actualizarCorrelativo() {
@@ -627,3 +868,95 @@ async function actualizarCorrelativo() {
         console.error("No se pudo obtener el correlativo de la factura.");
     }
 }
+
+/* ============================================================
+   FUNCIONES PARA EL MODAL DE CREAR CLIENTE (CORREGIDAS)
+============================================================ */
+
+window.irACrearCliente = function() {
+    const inputFiltro = document.getElementById('input-filtro-modal');
+    const textoEscaneado = inputFiltro ? inputFiltro.value.trim() : '';
+    
+    // 1. Cerramos la ventana de búsqueda para que no quede en el fondo
+    const modalBusqueda = document.getElementById('modal-busqueda-pos');
+    if (modalBusqueda) {
+        modalBusqueda.classList.add('hidden');
+        modalBusqueda.style.display = 'none';
+    }
+
+    // 2. Abrimos la nueva ventana grande
+    const modalNuevo = document.getElementById('modal-nuevo-cliente');
+    if (modalNuevo) {
+        modalNuevo.style.display = 'flex';
+        document.getElementById('form-nuevo-cliente').reset();
+    } else {
+        alert("Falta pegar el código HTML del modal nuevo en tu index.html");
+        return;
+    }
+
+    // 3. Autocompletado inteligente
+    if (textoEscaneado) {
+        if (!isNaN(textoEscaneado) || textoEscaneado.includes('-')) {
+            document.getElementById('nc-cedula').value = textoEscaneado;
+            setTimeout(() => document.getElementById('nc-nombre').focus(), 100);
+        } else {
+            document.getElementById('nc-nombre').value = textoEscaneado;
+            setTimeout(() => document.getElementById('nc-cedula').focus(), 100);
+        }
+    }
+};
+
+window.cerrarModalNuevoCliente = function() {
+    const modalNuevo = document.getElementById('modal-nuevo-cliente');
+    if(modalNuevo) modalNuevo.style.display = 'none';
+};
+
+window.guardarNuevoClientePOS = async function(e) {
+    e.preventDefault(); 
+    const btn = document.getElementById('btn-guardar-nc');
+    btn.textContent = 'Guardando...';
+    btn.disabled = true;
+
+    const datos = {
+        cedula: document.getElementById('nc-cedula').value,
+        nombre: document.getElementById('nc-nombre').value,
+        telefono: document.getElementById('nc-telefono').value,
+        direccion: document.getElementById('nc-direccion').value
+    };
+
+    try {
+        const res = await fetch('../../backend/clientes/guardar_pos.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(datos)
+        });
+        const json = await res.json();
+
+        if(json.ok) {
+            window.cerrarModalNuevoCliente();
+            
+            // Recargamos la lista de clientes
+            await cargarClientesModal();
+            
+            // Reabrimos el buscador con el nuevo cliente escrito para seleccionarlo
+            const modalBusqueda = document.getElementById('modal-busqueda-pos');
+            modalBusqueda.classList.remove('hidden');
+            modalBusqueda.style.display = 'flex';
+            
+            const inputFiltro = document.getElementById('input-filtro-modal');
+            inputFiltro.value = datos.cedula; 
+            renderizarTablaModal(datos.cedula);
+            
+            if(typeof mostrarAlertaPersonalizada === "function") {
+                mostrarAlertaPersonalizada("Cliente registrado con éxito. Haz doble clic para seleccionarlo.");
+            }
+        } else {
+            alert("Error: " + json.msg);
+        }
+    } catch(error) {
+        alert("Error de conexión al guardar el cliente.");
+    }
+    
+    btn.textContent = 'Guardar y Seleccionar';
+    btn.disabled = false;
+};

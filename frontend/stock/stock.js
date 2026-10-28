@@ -2,9 +2,14 @@ const API_STOCK = "../../backend/stock/";
 
 let paginaStock = 1;
 let buscarStock = "";
+let estadoRegistroStock = "1";
 
 document.addEventListener("DOMContentLoaded", () => {
-  cargarStock();
+  inicializarFiltroEstado("filtro-stock", (estado) => {
+    estadoRegistroStock = estado;
+    paginaStock = 1;
+    cargarStock();
+  });
 
   document.getElementById("buscar-stock").addEventListener("input", e => {
     buscarStock = e.target.value;
@@ -18,7 +23,7 @@ async function cargarStock() {
   tbody.innerHTML = "";
 
   const res = await fetch(
-    `${API_STOCK}listar.php?buscar=${buscarStock}&pagina=${paginaStock}&limite=10`
+    `${API_STOCK}listar.php?buscar=${encodeURIComponent(buscarStock)}&pagina=${paginaStock}&limite=9&estado=${estadoRegistroStock}`
   );
 
   const json = await res.json();
@@ -26,6 +31,10 @@ async function cargarStock() {
   if (!json.ok) {
     console.error("Error backend:", json.error);
     return;
+  }
+
+  if (json.data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay registros de stock para este filtro.</td></tr>';
   }
 
   json.data.forEach(s => {
@@ -38,6 +47,9 @@ async function cargarStock() {
     if (s.estado === "Excedido") clase = "estado-excedido";
 
     const tr = document.createElement("tr");
+    const accionesStock = Number(s.estado_registro) === 1
+      ? `<button class="btn-transferir" onclick="abrirTransferencia(${s.id})">🔁 Transferir</button>`
+      : `<button class="action-btn edit" onclick="activarStock(${s.id})" aria-label="Activar stock">♻️</button>`;
 
 const almacenesUI = {
   "Transporte": { icono: "🚚", color: "#007bff" },
@@ -69,7 +81,8 @@ tr.innerHTML = `
   <td class="minima">${s.minima}</td>
   <td class="maxima">${s.maxima}</td>
   <td class="estado"><span class="estado-tag ${clase}">${etiqueta}</span></td>
-  <td> <button class="btn-transferir" onclick="abrirTransferencia(${s.id})">🔁 Transferir</button> ${nombreAlmacen}
+  <td>${Number(s.estado_registro) === 1 ? "Activo" : "Inactivo"}</td>
+  <td>${accionesStock} ${nombreAlmacen}
   </td>
 `;
 
@@ -79,11 +92,37 @@ tr.innerHTML = `
   renderPaginacionStock(json.total);
 }
 
+async function activarStock(id) {
+  confirmarAccion("¿Activar nuevamente este registro de stock?", async () => {
+    const formData = new FormData();
+    formData.append("id", id);
+
+    try {
+      const respuesta = await fetch(`${API_STOCK}activar.php`, {
+        method: "POST",
+        body: formData
+      });
+      const json = await respuesta.json();
+
+      if (!respuesta.ok || !json.ok) {
+        mostrarMensajeBonito("Error: " + (json.msg || "No se pudo activar el stock."), "❌");
+        return;
+      }
+
+      await cargarStock();
+      mostrarMensajeBonito(json.msg || "Stock activado correctamente", "✅");
+    } catch (error) {
+      console.error("Error activando stock:", error);
+      mostrarMensajeBonito("Error de conexión al activar el stock.", "❌");
+    }
+  }, "Sí, activar");
+}
+
 function renderPaginacionStock(total) {
   const cont = document.getElementById("paginacion-stock");
   cont.innerHTML = "";
 
-  const totalPaginas = Math.ceil(total / 10);
+  const totalPaginas = Math.ceil(total / 9);
   if (totalPaginas <= 1) return;
 
   if (paginaStock > 1) {

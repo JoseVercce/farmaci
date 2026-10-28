@@ -54,16 +54,40 @@ foreach ($tablas as $tabla => $campo) {
    SI TIENE RESTRICCIONES → DESACTIVAR
 ============================================================ */
 if ($tieneRestriccion) {
+    try {
+        $conexion->begin_transaction();
 
-    $sqlDesactivar = "UPDATE productos SET estado = 0 WHERE id = ?";
-    $stmtDes = $conexion->prepare($sqlDesactivar);
-    $stmtDes->bind_param("i", $id);
-    $stmtDes->execute();
+        $stmtStock = $conexion->prepare("UPDATE stock SET estado = 0 WHERE id_producto = ?");
+        if (!$stmtStock) {
+            throw new mysqli_sql_exception("No se pudo preparar la actualización del stock.");
+        }
+        $stmtStock->bind_param("i", $id);
+        if (!$stmtStock->execute()) {
+            throw new mysqli_sql_exception("No se pudo inactivar el stock del producto.");
+        }
 
-    echo json_encode([
-        "ok" => true,
-        "msg" => "Producto desactivado (tiene registros asociados)"
-    ]);
+        $stmtDes = $conexion->prepare("UPDATE productos SET estado = 0 WHERE id = ?");
+        if (!$stmtDes) {
+            throw new mysqli_sql_exception("No se pudo preparar la desactivación del producto.");
+        }
+        $stmtDes->bind_param("i", $id);
+        if (!$stmtDes->execute()) {
+            throw new mysqli_sql_exception("No se pudo desactivar el producto.");
+        }
+
+        $conexion->commit();
+        echo json_encode([
+            "ok" => true,
+            "msg" => "Producto desactivado y stock asociado inactivado"
+        ]);
+    } catch (mysqli_sql_exception $e) {
+        $conexion->rollback();
+        error_log("Error al desactivar el producto $id y su stock: " . $e->getMessage());
+        echo json_encode([
+            "ok" => false,
+            "error" => "No se pudo desactivar el producto y su stock asociado."
+        ]);
+    }
     exit;
 }
 

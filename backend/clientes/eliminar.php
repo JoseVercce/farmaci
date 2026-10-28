@@ -19,12 +19,20 @@ try {
         $response["status"] = "success";
         $response["message"] = "Cliente eliminado correctamente";
     } else {
-        throw new Exception("Error al eliminar: " . $stmt->error);
+        throw new Exception($stmt->error);
     }
 
 } catch (Exception $e) {
-    $response["status"] = "error";
-    $response["message"] = $e->getMessage();
+
+    // Detectar si el error es por llave foránea
+    if (str_contains($e->getMessage(), "foreign key")) {
+        $response["status"] = "error";
+        $response["message"] = "Este cliente no puede ser eliminado porque está asociado a una o mas ventas.";
+        $response["debug"] = $e->getMessage();
+    } else {
+        $response["status"] = "error";
+        $response["message"] = $e->getMessage();
+    }
 }
 
 echo json_encode($response);

@@ -119,8 +119,9 @@ document.getElementById("form-almacen").addEventListener("submit", async functio
 
   const formData = new FormData(this);
   const id = formData.get("id");
+  const esEdicion = Boolean(id);
 
-  const url = id ? API_EDITAR : API_CREAR;
+  const url = esEdicion ? API_EDITAR : API_CREAR;
 
   try {
     const respuesta = await fetch(url, {
@@ -133,6 +134,10 @@ document.getElementById("form-almacen").addEventListener("submit", async functio
     if (data.ok) {
       cerrarModal();
       cargarAlmacenes();
+      mostrarMensajeBonito(
+        esEdicion ? "Almacén actualizado correctamente" : "Almacén registrado correctamente",
+        "📦"
+      );
     } else {
       alert("Error: " + data.msg);
     }
@@ -146,21 +151,22 @@ document.getElementById("form-almacen").addEventListener("submit", async functio
 //   ELIMINAR
 // ===============================
 async function eliminarAlmacen(id) {
-  if (!confirm("¿Seguro que deseas eliminar este almacén?")) return;
+  confirmarAccion("¿Eliminar este almacén?", async () => {
+    try {
+      const respuesta = await fetch(API_ELIMINAR + "?id=" + id);
+      const data = await respuesta.json();
 
-  try {
-    const respuesta = await fetch(API_ELIMINAR + "?id=" + id);
-    const data = await respuesta.json();
+      if (data.ok) {
+        cargarAlmacenes();
+        mostrarMensajeBonito("Almacén eliminado correctamente", "🗑️");
+      } else {
+        alert("Error: " + data.msg);
+      }
 
-    if (data.ok) {
-      cargarAlmacenes();
-    } else {
-      alert("Error: " + data.msg);
+    } catch (error) {
+      console.error("Error al eliminar:", error);
     }
-
-  } catch (error) {
-    console.error("Error al eliminar:", error);
-  }
+  }, "Sí, eliminar");
 }
 
 // ===============================

@@ -1,8 +1,12 @@
 const API_USER = "../../backend/usuario/";
+let estadoUsuario = "1";
 
 document.addEventListener("DOMContentLoaded", () => {
-    cargarUsuarios();
     cargarRolesUsuario();
+    inicializarFiltroEstado("filtro-usuarios", (estado) => {
+        estadoUsuario = estado;
+        cargarUsuarios();
+    });
 
     const btnNuevo = document.getElementById("btn-nuevo-usuario");
     const modal = document.getElementById("modal-usuario");
@@ -43,6 +47,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (json.ok) {
             modal.classList.add("hidden");
             cargarUsuarios();
+            mostrarMensajeBonito(
+                id ? "Usuario actualizado correctamente" : "Usuario registrado correctamente",
+                "👤"
+            );
         } else {
             alert("Error: " + json.error);
         }
@@ -57,7 +65,7 @@ async function cargarUsuarios() {
     const tbody = document.getElementById("tabla-usuarios");
     tbody.innerHTML = "";
 
-    const res = await fetch(API_USER + "listar.php");
+    const res = await fetch(API_USER + "listar.php?estado=" + encodeURIComponent(estadoUsuario));
     const json = await res.json();
 
     if (!json.ok) {
@@ -65,17 +73,25 @@ async function cargarUsuarios() {
         return;
     }
 
+    if (json.data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay usuarios para este filtro.</td></tr>';
+    }
+
     json.data.forEach(u => {
         const tr = document.createElement("tr");
+        const botonEstado = Number(u.estado) === 1
+            ? `<button class="action-btn delete" onclick="eliminarUsuario(${u.id})" aria-label="Inactivar usuario">🗑️</button>`
+            : `<button class="action-btn edit" onclick="activarUsuario(${u.id})" aria-label="Activar usuario">♻️</button>`;
         tr.innerHTML = `
             <td>${u.nombre}</td>
             <td>${u.usuario}</td>
             <td>${u.correo}</td>
             <td>${u.telefono}</td>
             <td>${u.roles}</td>
+            <td>${Number(u.estado) === 1 ? "Activo" : "Inactivo"}</td>
             <td class="acciones">
                 <button class="action-btn edit" onclick="editarUsuario(${u.id})">✏️</button>
-                <button class="action-btn delete" onclick="eliminarUsuario(${u.id})">🗑️</button>
+                ${botonEstado}
             </td>
         `;
         tbody.appendChild(tr);
@@ -145,21 +161,51 @@ async function editarUsuario(id) {
 // =============================
 // ELIMINAR USUARIO
 // =============================
+async function activarUsuario(id) {
+    confirmarAccion("¿Activar nuevamente este usuario?", async () => {
+        const fd = new FormData();
+        fd.append("id", id);
+
+        try {
+            const respuesta = await fetch(API_USER + "activar.php", {
+                method: "POST",
+                body: fd
+            });
+            const json = await respuesta.json();
+
+            if (!respuesta.ok || !json.ok) {
+                mostrarMensajeBonito("Error: " + (json.msg || "No se pudo activar el usuario."), "❌");
+                return;
+            }
+
+            await cargarUsuarios();
+            mostrarMensajeBonito(json.msg || "Usuario activado correctamente", "✅");
+        } catch (error) {
+            console.error("Error activando usuario:", error);
+            mostrarMensajeBonito("Error de conexión al activar el usuario.", "❌");
+        }
+    }, "Sí, activar");
+}
+
 async function eliminarUsuario(id) {
-    if (!confirm("¿Eliminar usuario?")) return;
+    confirmarAccion("¿Eliminar este usuario?", async () => {
+        const fd = new FormData();
+        fd.append("id", id);
 
-    const fd = new FormData();
-    fd.append("id", id);
+        const res = await fetch(API_USER + "eliminar.php", {
+            method: "POST",
+            body: fd
+        });
 
-    const res = await fetch(API_USER + "eliminar.php", {
-        method: "POST",
-        body: fd
-    });
+        const json = await res.json();
 
-    const json = await res.json();
-
-    if (json.ok) cargarUsuarios();
-    else alert("Error al eliminar usuario");
+        if (json.ok) {
+            cargarUsuarios();
+            mostrarMensajeBonito(json.msg || "Usuario eliminado correctamente", "🗑️");
+        } else {
+            alert("Error al eliminar usuario");
+        }
+    }, "Sí, eliminar");
 }
 
 document.getElementById("btn-mini-logout").addEventListener("click", () => {

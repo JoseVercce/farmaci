@@ -1,26 +1,36 @@
 <?php
-header("Content-Type: application/json");
 require_once "../conexion.php";
+session_start();
 
-$id = $_POST["id"] ?? null;
+header("Content-Type: application/json");
+
+$id = $_GET["id"] ?? null;
 
 if (!$id) {
-    echo json_encode(["status" => "error", "msg" => "ID requerido"]);
+    echo json_encode([
+        "status" => "error",
+        "message" => "ID no recibido"
+    ]);
     exit;
 }
 
-// eliminar relaciones en usuario_rol
-$stmt = $conexion->prepare("DELETE FROM usuario_rol WHERE id_rol=?");
-$stmt->bind_param("i", $id);
-$stmt->execute();
+try {
 
-// eliminar el rol
-$stmt2 = $conexion->prepare("DELETE FROM rol WHERE id=?");
-$stmt2->bind_param("i", $id);
+    $sql = $conexion->prepare("DELETE FROM rol WHERE id = ?");
+    $sql->bind_param("i", $id);
+    $sql->execute();
 
-if ($stmt2->execute()) {
-    echo json_encode(["status" => "success"]);
-} else {
-    echo json_encode(["status" => "error", "msg" => "No se pudo eliminar"]);
+    echo json_encode([
+        "status" => "success",
+        "message" => "Rol eliminado correctamente"
+    ]);
+
+} catch (Exception $e) {
+
+    // Aquí enviamos el error a la consola
+    echo json_encode([
+        "status" => "error",
+        "message" => "No se puede eliminar el rol porque está asignado a uno o más usuarios.",
+        "debug" => $e->getMessage()
+    ]);
 }
-?>

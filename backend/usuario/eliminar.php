@@ -2,26 +2,45 @@
 header("Content-Type: application/json");
 require_once "../conexion.php";
 
-$id = $_POST["id"] ?? null;
+$id = filter_var($_POST["id"] ?? null, FILTER_VALIDATE_INT);
 
-if (!$id) {
+if (!$id || $id < 1) {
     echo json_encode(["ok" => false, "msg" => "ID requerido"]);
     exit;
 }
 
-// 1️⃣ Verificar si el usuario tiene compras
-$check = $conexion->query("SELECT id FROM compras WHERE id_usuario = $id LIMIT 1");
+$checkCompras = $conexion->prepare("SELECT id FROM compras WHERE id_usuario = ? LIMIT 1");
+$checkCompras->bind_param("i", $id);
+$checkCompras->execute();
+$tieneCompras = $checkCompras->get_result()->num_rows > 0;
 
-if ($check->num_rows > 0) {
-    // 2️⃣ Si tiene compras → inactivar usuario
-    $conexion->query("UPDATE usuario SET estado = 0 WHERE id = $id");
-    echo json_encode(["ok" => true, "msg" => "Usuario inactivado (tiene compras asociadas)"]);
+$checkVentas = $conexion->prepare("SELECT id FROM ventas WHERE id_usuario = ? LIMIT 1");
+$checkVentas->bind_param("i", $id);
+$checkVentas->execute();
+$tieneVentas = $checkVentas->get_result()->num_rows > 0;
+
+if ($tieneCompras || $tieneVentas) {
+    $stmt = $conexion->prepare("UPDATE usuario SET estado = 0 WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    if ($stmt->execute()) {
+        echo json_encode([
+            "ok" => true,
+            "msg" => "Usuario inactivado porque tiene compras o ventas asociadas"
+        ]);
+    } else {
+        echo json_encode(["ok" => false, "msg" => "No se pudo inactivar el usuario"]);
+    }
     exit;
 }
 
-// 3️⃣ Si NO tiene compras → eliminar dependencias y luego el usuario
-$conexion->query("DELETE FROM direccion WHERE id_usuario = $id");
-$conexion->query("DELETE FROM usuario_rol WHERE id_usuario = $id");
+// Eliminar dependencias solo cuando no hay compras ni ventas asociadas.
+$stmtDireccion = $conexion->prepare("DELETE FROM direccion WHERE id_usuario = ?");
+$stmtDireccion->bind_param("i", $id);
+$stmtDireccion->execute();
+
+$stmtRoles = $conexion->prepare("DELETE FROM usuario_rol WHERE id_usuario = ?");
+$stmtRoles->bind_param("i", $id);
+$stmtRoles->execute();
 
 $stmt = $conexion->prepare("DELETE FROM usuario WHERE id = ?");
 $stmt->bind_param("i", $id);

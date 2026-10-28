@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Usuarios</title>
   <link rel="icon" type="image/x-icon" href="../assets/css/favicon.png">
-  <link rel="stylesheet" href="../assets/css/styles.css">
+  <link rel="stylesheet" href="../assets/css/styles.css?v=filtro-desplegable">
 </head>
 <body>
 <div class="layout">
@@ -14,7 +14,15 @@
   <section class="section visible">
     <div class="section-header">
       <h2>👤 Usuarios del sistema</h2>
-      <button id="btn-nuevo-usuario" class="btn-primary">Nuevo usuario</button>
+      <div id="filtro-usuarios" class="filtro-estado">
+        <button type="button" data-filtro-toggle aria-haspopup="true" aria-expanded="false">Filtrar estado ▾</button>
+        <div data-filtro-menu class="hidden" role="group" aria-label="Filtrar usuarios por estado">
+          <button type="button" data-estado="1">Activos</button>
+          <button type="button" data-estado="0">Inactivos</button>
+          <button type="button" data-estado="todos">Todos</button>
+        </div>
+      </div>
+      <button id="btn-nuevo-usuario" class="btn-primary btn-crear">Nuevo usuario</button>
     </div>
 
     <table class="table">
@@ -25,6 +33,7 @@
         <th>Correo</th>
         <th>Telefono</th>
         <th>Roles</th>
+        <th>Estado</th>
         <th>Acciones</th>
         </tr>
       </thead>
@@ -130,10 +139,13 @@
 </div>
 
 
+<script src="../assets/js/feedback.js"></script>
+<script src="../assets/js/filtro_estado.js"></script>
 <script src="usuarios.js"></script>
 <script src="../assets/js/usuario.js"></script>
 <script src="../assets/js/config_farmacia.js"></script>
 <script src="../assets/js/ajustes_sidebar.js"></script>
+<script src="../assets/js/permisos.js"></script>
 <script>
 document.querySelectorAll(".nav-dropdown-btn").forEach(btn => {
   btn.addEventListener("click", () => {

@@ -5,7 +5,8 @@ require '../seguridad.php';
 requireLogin();
 
 try {
-    $resMax = $conexion->query("SELECT MAX(id_venta) AS max_id FROM ventas");
+    // CORREGIDO: Cambiamos 'id_venta' por 'id' para que coincida con tu tabla
+    $resMax = $conexion->query("SELECT MAX(id) AS max_id FROM ventas");
     $rowMax = $resMax->fetch_assoc();
     $nextId = intval($rowMax['max_id']) + 1;
     

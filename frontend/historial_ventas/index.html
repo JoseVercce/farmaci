@@ -4,8 +4,7 @@
   <meta charset="UTF-8">
   <title>Historial de Ventas</title>
   <link rel="icon" type="image/x-icon" href="../assets/css/favicon.png">
-  <!-- Aquí está el truco de la caché para el CSS (?v=pos) -->
-  <link rel="stylesheet" href="../assets/css/styles.css?v=pos">
+  <link rel="stylesheet" href="../assets/css/styles.css?v=factura-venezolana">
 </head>
 <body>
 
@@ -86,12 +85,87 @@
       <button id="aj-cerrar" class="close-btn">Cerrar</button>
     </div>
   </div>
-</div>3
+</div>
 
-  <!-- Conexión a la lógica de JS (actualizado a v=2 para forzar los cambios en tu navegador) -->
+  <!-- Conexión a la lógica del historial -->
+   <script>
+   document.querySelectorAll(".nav-dropdown-btn").forEach(btn => {
+     btn.addEventListener("click", () => {
+       btn.parentElement.classList.toggle("open");
+     });
+   });
+   </script>
    <script src="../assets/js/usuario.js"></script>
    <script src="../assets/js/config_farmacia.js"></script>
    <script src="../assets/js/ajustes_sidebar.js"></script>
-   <script src="historial.js?v=2"></script>
+   <script src="historial.js?v=7"></script>
+
+
+ <!-- Modal de Detalles de Factura -->
+<div id="modal-detalle-venta" class="modal-detalle-venta hidden">
+    <section class="detalle-venta-dialog factura-documento" role="dialog" aria-modal="true" aria-labelledby="detalle-venta-titulo">
+        <header class="factura-cabecera">
+            <div class="factura-emisor">
+                <img id="factura-emisor-logo" class="factura-emisor-logo" alt="Logo de la farmacia" hidden>
+                <div>
+                    <span class="factura-eyebrow">Emisor</span>
+                    <h2 id="factura-emisor-nombre">Farmacia</h2>
+                    <span class="factura-tipo-documento">Comprobante de venta</span>
+                </div>
+            </div>
+            <div class="factura-identificacion">
+                <span class="factura-eyebrow">Factura</span>
+                <strong id="modal-factura-num">...</strong>
+                <span>Fecha de emisión: <time id="modal-factura-fecha">...</time></span>
+            </div>
+            <div class="factura-acciones">
+                <button type="button" class="factura-imprimir" onclick="window.print()">Imprimir</button>
+                <button type="button" class="detalle-venta-cerrar" onclick="cerrarModalDetalle()" aria-label="Cerrar detalle de factura">&times;</button>
+            </div>
+        </header>
+
+        <div class="factura-cuerpo">
+            <section class="factura-cliente">
+                <h3>Datos del cliente</h3>
+                <div class="factura-cliente-grid">
+                    <div><span>Nombre o razón social</span><strong id="modal-cliente-nombre">Consumidor Final</strong></div>
+                    <div><span>Cédula / RIF</span><strong id="modal-cliente-cedula">N/A</strong></div>
+                    <div><span>Teléfono</span><strong id="modal-cliente-telefono">N/A</strong></div>
+                </div>
+            </section>
+
+            <section class="factura-items">
+                <h3>Detalle de los bienes vendidos</h3>
+                <div class="detalle-venta-tabla-scroll">
+                    <table class="detalle-venta-tabla">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Descripción</th>
+                                <th class="text-center">Cantidad</th>
+                                <th class="text-right">Precio unitario</th>
+                                <th class="text-right">IVA</th>
+                                <th class="text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-detalle-body"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <footer class="factura-pie">
+                <div class="factura-pago">
+                    <span>Forma de pago</span>
+                    <strong id="modal-metodo-pago">No registrado</strong>
+                </div>
+                <div class="factura-total">
+                    <span>Total cobrado</span>
+                    <strong id="modal-venta-total">...</strong>
+                </div>
+            </footer>
+        </div>
+    </section>
+</div>
+
 </body>
 </html>

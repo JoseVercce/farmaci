@@ -1,18 +1,21 @@
 <?php
 header("Content-Type: application/json");
 require_once "../conexion.php";
+require '../seguridad.php';
+requireLogin();
 
-$sql = "SELECT id, nombre FROM clientes ORDER BY nombre ASC";
-$res = $conexion->query($sql);
+try {
+    // Aseguramos que extraiga la cédula (y todas las columnas) de la base de datos
+    $query = "SELECT * FROM clientes ORDER BY nombre ASC";
+    $resultado = $conexion->query($query);
+    
+    $clientes = [];
+    while ($fila = $resultado->fetch_assoc()) {
+        $clientes[] = $fila;
+    }
 
-$clientes = [];
-while ($row = $res->fetch_assoc()) {
-    $clientes[] = $row;
+    echo json_encode(["ok" => true, "data" => $clientes]);
+} catch (Exception $e) {
+    echo json_encode(["ok" => false, "msg" => "Error al obtener clientes: " . $e->getMessage()]);
 }
-
-echo json_encode([
-    "status" => "success",
-    "data" => $clientes,
-    "total" => count($clientes)
-]);
 ?>

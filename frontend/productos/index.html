@@ -5,12 +5,11 @@
   <title>Productos</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/x-icon" href="../assets/css/favicon.png">
-  <link rel="stylesheet" href="../assets/css/styles.css">
+  <link rel="stylesheet" href="../assets/css/styles.css?v=filtro-desplegable">
 </head>
 <body>
 <div class="layout">
 <script src="../assets/js/menu.js"></script>
-
 <main class="main">
   <section class="section visible">
     <div class="section-header">
@@ -18,7 +17,15 @@
         <div class="search-controls">
         <input type="text" id="buscar-producto" placeholder="Buscar producto...">
       </div>
-        <button id="btn-nuevo-producto" class="btn-primary btn-crear">Nuevo producto</button>
+        <div id="filtro-productos" class="filtro-estado">
+          <button type="button" data-filtro-toggle aria-haspopup="true" aria-expanded="false">Filtrar estado ▾</button>
+          <div data-filtro-menu class="hidden" role="group" aria-label="Filtrar productos por estado">
+            <button type="button" data-estado="1">Activos</button>
+            <button type="button" data-estado="0">Inactivos</button>
+            <button type="button" data-estado="todos">Todos</button>
+          </div>
+        </div>
+      <button id="btn-nuevo-producto" class="btn-primary btn-crear">Nuevo producto</button>
     </div>
 
     <table class="table">
@@ -28,6 +35,7 @@
         <th>Descripcion</th>
         <th>Categoría</th>
         <th>Precio venta</th>
+        <th>Estado</th>
         <th>Acciones</th>
         </tr>
       </thead>
@@ -80,6 +88,7 @@
       <button type="button" id="btn-cancelar" class="btn-secondary">Cancelar</button>
     </div>
   </div>
+  </form>
 </div>
 
 <div id="modal-ajustes" class="modal hidden">
@@ -123,16 +132,57 @@
 </div>
 
 
+<div id="modal-mensaje" class="modal hidden">
+  <div class="modal-content" style="max-width: 400px; text-align: center; padding: 30px;">
+
+      <div id="mensaje-icono" style="font-size: 50px; margin-bottom: 15px;">✔️</div>
+
+      <h3 id="mensaje-texto" style="font-size: 20px; margin-bottom: 20px; color: #374151;">
+        Mensaje aquí
+      </h3>
+
+      <button id="mensaje-btn" class="btn-primary" style="width: 100%; padding: 12px;">
+        Aceptar
+      </button>
+  </div>
+</div>
+
+<!-- MODAL DE CONFIRMACIÓN -->
+<div id="modal-confirmar" class="modal hidden">
+  <div class="modal-content" style="max-width: 420px; text-align: center; padding: 30px;">
+
+      <div style="font-size: 55px; margin-bottom: 15px; color: #e11d48;">⚠️</div>
+
+      <h3 id="confirmar-texto" style="font-size: 20px; margin-bottom: 25px; color: #374151;">
+        ¿Está seguro?
+      </h3>
+
+      <div style="display: flex; gap: 12px; justify-content: center;">
+          <button id="confirmar-aceptar" class="btn-primary" style="padding: 10px 20px;">
+            Sí, eliminar
+          </button>
+
+          <button id="confirmar-cancelar" class="btn-secondary" style="padding: 10px 20px;">
+            Cancelar
+          </button>
+      </div>
+
+  </div>
+</div>
+
 <script>
 document.querySelectorAll(".nav-dropdown-btn").forEach(btn => {
   btn.addEventListener("click", () => {
-    const parent = btn.parentElement;
-    parent.classList.toggle("open");});
+    btn.parentElement.classList.toggle("open");
+  });
 });
 </script>
+<script src="../assets/js/filtro_estado.js"></script>
 <script src="productos.js"></script>
 <script src="../assets/js/usuario.js"></script>
 <script src="../assets/js/config_farmacia.js"></script>
 <script src="../assets/js/ajustes_sidebar.js"></script>
+<script src="../assets/js/permisos.js"></script>
+
 </body>
 </html>

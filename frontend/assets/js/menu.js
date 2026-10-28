@@ -14,12 +14,12 @@ document.write(`
     <nav class="sidebar-nav">
       <a href="../dashboard/index.html" class="nav-item">Inicio</a>
       <a href="../productos/index.html" class="nav-item">Productos</a>
-      <a href="../compras/index.html" class="nav-item">Compras</a>
       <a href="../stock/index.html" class="nav-item">Stock</a>
+      <a href="../compras/index.html" class="nav-item">Compras</a>
       <a href="../movimientos/index.html" class="nav-item">Movimientos</a>
-      <a href="../facturas/index.html" class="nav-item">Facturas</a>
       <a href="../proveedores/index.html" class="nav-item">Proveedores</a>
       <a href="../clientes/index.html" class="nav-item">Clientes</a>
+      <a href="../facturas/index.html" class="nav-item">Ventas</a>
       <a href="../historial_ventas/index.html" class="nav-item">Historial de Ventas</a>
 
 <div class="nav-dropdown">

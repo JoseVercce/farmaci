@@ -6,6 +6,10 @@ $buscar = $_GET["buscar"] ?? "";
 $pagina = intval($_GET["pagina"] ?? 1);
 $limite = intval($_GET["limite"] ?? 10);
 $offset = ($pagina - 1) * $limite;
+$estadoSolicitado = $_GET["estado"] ?? "1";
+$estado = $estadoSolicitado === "todos"
+    ? -1
+    : (in_array($estadoSolicitado, ["0", "1"], true) ? intval($estadoSolicitado) : 1);
 
 $like = "%$buscar%";
 
@@ -16,7 +20,7 @@ $sqlTotal = $conexion->prepare("
     SELECT COUNT(*) AS total
     FROM stock s
     INNER JOIN productos p ON p.id = s.id_producto
-    WHERE p.estado = 1
+    WHERE (? = -1 OR s.estado = ?)
       AND (
             p.nombre LIKE ?
          OR s.cantidad_actual LIKE ?
@@ -32,7 +36,7 @@ $sqlTotal = $conexion->prepare("
       )
 ");
 
-$sqlTotal->bind_param("sssss", $like, $like, $like, $like, $like);
+$sqlTotal->bind_param("iisssss", $estado, $estado, $like, $like, $like, $like, $like);
 $sqlTotal->execute();
 $total = $sqlTotal->get_result()->fetch_assoc()["total"];
 
@@ -47,6 +51,7 @@ $sql = $conexion->prepare("
         s.cantidad_minima AS minima,
         s.cantidad_maxima AS maxima,
         s.id_almacen,
+        s.estado AS estado_registro,
         a.nombre AS almacen,   -- ✔ NOMBRE DEL ALMACÉN
         CASE
             WHEN s.cantidad_actual <= s.cantidad_minima THEN 'Bajo'
@@ -56,7 +61,7 @@ $sql = $conexion->prepare("
     FROM stock s
     INNER JOIN productos p ON p.id = s.id_producto
     LEFT JOIN almacen a ON a.id = s.id_almacen   -- ✔ JOIN AGREGADO
-    WHERE p.estado = 1
+    WHERE (? = -1 OR s.estado = ?)
       AND (
             p.nombre LIKE ?
          OR s.cantidad_actual LIKE ?
@@ -75,7 +80,7 @@ $sql = $conexion->prepare("
 ");
 
 
-$sql->bind_param("ssssssi", $like, $like, $like, $like, $like, $limite, $offset);
+$sql->bind_param("iisssssii", $estado, $estado, $like, $like, $like, $like, $like, $limite, $offset);
 $sql->execute();
 $res = $sql->get_result();
 
@@ -89,6 +94,7 @@ while ($row = $res->fetch_assoc()) {
         "minima" => $row["minima"],
         "maxima" => $row["maxima"],
         "estado" => $row["estado"],
+        "estado_registro" => $row["estado_registro"],
         "almacen" => $row["almacen"] ?? "Sin asignar"
     ];
 }

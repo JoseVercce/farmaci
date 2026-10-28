@@ -7,72 +7,216 @@ requireLogin();
 // Leer los datos JSON enviados desde JavaScript
 $data = json_decode(file_get_contents("php://input"), true);
 
-if (!$data || empty($data['items'])) {
+if (!is_array($data) || empty($data['items']) || !is_array($data['items'])) {
     echo json_encode(["ok" => false, "msg" => "La factura está vacía."]);
     exit;
 }
 
 $idCliente = !empty($data['cliente_id']) ? intval($data['cliente_id']) : 1; 
-$totalVenta = floatval($data['total']);
+$idMetodoPago = filter_var($data['metodo_pago_id'] ?? null, FILTER_VALIDATE_INT);
+if (!$idMetodoPago || $idMetodoPago < 1) {
+    echo json_encode(["ok" => false, "msg" => "Selecciona un método de pago válido."]);
+    exit;
+}
 $idUsuario = $_SESSION['id_usuario'] ?? 1; 
 $idCaja = 1; 
+$descuento = filter_var($data['descuento'] ?? 0, FILTER_VALIDATE_FLOAT);
+if ($descuento === false || $descuento < 0 || $descuento > 100) {
+    echo json_encode(["ok" => false, "msg" => "El descuento debe estar entre 0 y 100%."]);
+    exit;
+}
+
+$tasaIva = 16.00;
+$itemsValidados = [];
+$totalVenta = 0.0;
+foreach ($data['items'] as $item) {
+    if (!is_array($item)) {
+        echo json_encode(["ok" => false, "msg" => "Hay un producto con datos inválidos."]);
+        exit;
+    }
+
+    $idProducto = filter_var($item['id'] ?? null, FILTER_VALIDATE_INT);
+    $cantidad = filter_var($item['cantidad'] ?? null, FILTER_VALIDATE_INT);
+    $precio = filter_var($item['precio'] ?? null, FILTER_VALIDATE_FLOAT);
+    $aplicaIva = filter_var(
+        $item['aplica_iva'] ?? true,
+        FILTER_VALIDATE_BOOLEAN,
+        FILTER_NULL_ON_FAILURE
+    );
+    if (!$idProducto || $idProducto < 1 || !$cantidad || $cantidad < 1
+        || $precio === false || $precio < 0 || $aplicaIva === null) {
+        echo json_encode(["ok" => false, "msg" => "Hay un producto con cantidad, precio o IVA inválido."]);
+        exit;
+    }
+
+    $base = round($cantidad * $precio, 2);
+    $baseConDescuento = round($base - round($base * ($descuento / 100), 2), 2);
+    $iva = $aplicaIva ? round($baseConDescuento * ($tasaIva / 100), 2) : 0.0;
+    $totalVenta += $baseConDescuento + $iva;
+    $itemsValidados[] = [
+        "id" => $idProducto,
+        "cantidad" => $cantidad,
+        "precio" => $precio,
+        "aplica_iva" => $aplicaIva
+    ];
+}
+$totalVenta = round($totalVenta, 2);
 
 // Iniciamos la transacción
 $conexion->begin_transaction();
 
 try {
+    // Las ventas siempre se descuentan del almacén principal.
+    $nombreAlmacenPrincipal = "Principal";
+    $sqlAlmacen = $conexion->prepare("
+        SELECT id
+        FROM almacen
+        WHERE nombre = ?
+        ORDER BY id
+        LIMIT 1
+    ");
+    if (!$sqlAlmacen) {
+        throw new Exception("Error preparando la consulta del almacén principal: " . $conexion->error);
+    }
+    $sqlAlmacen->bind_param("s", $nombreAlmacenPrincipal);
+    $sqlAlmacen->execute();
+    $almacenPrincipal = $sqlAlmacen->get_result()->fetch_assoc();
+    if (!$almacenPrincipal) {
+        throw new Exception("No existe un almacén llamado Principal.");
+    }
+    $idAlmacenPrincipal = intval($almacenPrincipal["id"]);
+
     // 1. Generar número de factura
-    $resMax = $conexion->query("SELECT MAX(id_venta) AS max_id FROM ventas");
+    $resMax = $conexion->query("SELECT MAX(id) AS max_id FROM ventas");
+    if (!$resMax) {
+        throw new Exception("Error al generar factura: " . $conexion->error);
+    }
+    
     $rowMax = $resMax->fetch_assoc();
     $nextId = intval($rowMax['max_id']) + 1;
     $numeroFactura = sprintf("FACT-%06d", $nextId);
 
     // 2. Insertar en la tabla 'ventas'
     $sqlVenta = $conexion->prepare("INSERT INTO ventas (numero_factura, fecha, id_cliente, id_caja, total, id_usuario) VALUES (?, NOW(), ?, ?, ?, ?)");
+    if (!$sqlVenta) {
+        throw new Exception("Error preparando la venta: " . $conexion->error);
+    }
+    
     $sqlVenta->bind_param("siidi", $numeroFactura, $idCliente, $idCaja, $totalVenta, $idUsuario);
-    $sqlVenta->execute();
+    
+    if (!$sqlVenta->execute()) {
+        throw new Exception("MySQL rechazó guardar la venta principal: " . $sqlVenta->error);
+    }
     $idVenta = $conexion->insert_id; 
 
-    // 3. Procesar cada producto del carrito
-    $sqlDetalle = $conexion->prepare("INSERT INTO detalle_ventas (id_venta, id_producto, cantidad, precio_unitario) VALUES (?, ?, ?, ?)");
-    $sqlGetStock = $conexion->prepare("SELECT cantidad_actual, id_stock FROM stock WHERE id_producto = ?");
-    $sqlUpdateStock = $conexion->prepare("UPDATE stock SET cantidad_actual = cantidad_actual - ? WHERE id_producto = ?");
-    
-    // CORRECCIÓN: Cambiamos id_producto por id_stock según tu diagrama
-    $sqlMovimiento = $conexion->prepare("INSERT INTO movimientos (id_stock, tipo, cantidad_inicio, cantidad_salida, cantidad_final, fecha, referencia) VALUES (?, 'SALIDA', ?, ?, ?, NOW(), ?)");
-
-    if (!$sqlMovimiento) {
-        throw new Exception("Error SQL en la tabla movimientos: " . $conexion->error);
+    $sqlMetodoPago = $conexion->prepare("SELECT id FROM metodo_pago WHERE id = ?");
+    if (!$sqlMetodoPago) {
+        throw new Exception("Error preparando la validación del método de pago: " . $conexion->error);
+    }
+    $sqlMetodoPago->bind_param("i", $idMetodoPago);
+    if (!$sqlMetodoPago->execute() || !$sqlMetodoPago->get_result()->fetch_assoc()) {
+        throw new Exception("El método de pago seleccionado no existe.");
     }
 
-    foreach ($data['items'] as $item) {
-        $idProducto = intval($item['id']);
-        $cantidad = intval($item['cantidad']);
-        $precio = floatval($item['precio']);
+    $sqlDetallePago = $conexion->prepare("
+        INSERT INTO detalle_pago (id_venta, id_metodo_pago, monto)
+        VALUES (?, ?, ?)
+    ");
+    if (!$sqlDetallePago) {
+        throw new Exception("Error preparando el registro del pago: " . $conexion->error);
+    }
+    $sqlDetallePago->bind_param("iid", $idVenta, $idMetodoPago, $totalVenta);
+    if (!$sqlDetallePago->execute()) {
+        throw new Exception("Error al registrar el método de pago: " . $sqlDetallePago->error);
+    }
 
-        // A. Guardar en detalle_ventas
-        $sqlDetalle->bind_param("iiid", $idVenta, $idProducto, $cantidad, $precio);
-        $sqlDetalle->execute();
+    // 3. Procesar cada producto del carrito
+    $sqlDetalle = $conexion->prepare("
+        INSERT INTO detalle_ventas
+            (id_venta, id_producto, cantidad, precio_unitario, aplica_iva, alicuota_iva)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ");
+    $sqlGetStock = $conexion->prepare("
+        SELECT s.id, s.cantidad_actual
+        FROM stock s
+        INNER JOIN productos p ON p.id = s.id_producto
+        WHERE s.id_producto = ?
+          AND s.id_almacen = ?
+          AND p.estado = 1
+        ORDER BY s.id
+        FOR UPDATE
+    ");
+    $sqlUpdateStock = $conexion->prepare("
+        UPDATE stock
+        SET cantidad_actual = cantidad_actual - ?
+        WHERE id = ? AND cantidad_actual >= ?
+    ");
+    $sqlMovimiento = $conexion->prepare("INSERT INTO movimientos (id_stock, tipo, cantidad_inicio, cantidad_salida, cantidad_final, fecha, referencia) VALUES (?, 'SALIDA', ?, ?, ?, NOW(), ?)");
 
-        // B. Consultar el stock actual y obtener el id_stock
-        $sqlGetStock->bind_param("i", $idProducto);
-        $sqlGetStock->execute();
-        $resStock = $sqlGetStock->get_result();
-        
-        if ($rowStock = $resStock->fetch_assoc()) {
-            $cantidadInicio = intval($rowStock['cantidad_actual']);
-            $idStock = intval($rowStock['id_stock']); // Extraemos el id_stock de la base de datos
-            $cantidadFinal = $cantidadInicio - $cantidad;
+    if (!$sqlDetalle || !$sqlGetStock || !$sqlUpdateStock || !$sqlMovimiento) {
+        throw new Exception("Error preparando consultas secundarias: " . $conexion->error);
+    }
 
-            // C. Descontar del stock
-            $sqlUpdateStock->bind_param("ii", $cantidad, $idProducto);
-            $sqlUpdateStock->execute();
+    foreach ($itemsValidados as $item) {
+        $idProducto = $item["id"];
+        $cantidad = $item["cantidad"];
+        $precio = $item["precio"];
+        $aplicaIva = $item["aplica_iva"] ? 1 : 0;
 
-            // D. Registrar el movimiento de salida (usando el id_stock)
-            $sqlMovimiento->bind_param("iiiis", $idStock, $cantidadInicio, $cantidad, $cantidadFinal, $numeroFactura);
-            $sqlMovimiento->execute();
-        } else {
-            throw new Exception("El producto ID $idProducto no tiene registro de stock.");
+        // A. Guardar el detalle junto con el tratamiento de IVA aplicado.
+        $sqlDetalle->bind_param("iiidid", $idVenta, $idProducto, $cantidad, $precio, $aplicaIva, $tasaIva);
+        if (!$sqlDetalle->execute()) {
+            throw new Exception("Error en detalle_ventas: " . $sqlDetalle->error);
+        }
+
+        // B. Consultar el stock actual
+        $sqlGetStock->bind_param("ii", $idProducto, $idAlmacenPrincipal);
+        if (!$sqlGetStock->execute()) {
+            throw new Exception("Error consultando el inventario del almacén principal: " . $sqlGetStock->error);
+        }
+        $filasStock = $sqlGetStock->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stockDisponible = array_sum(array_map(
+            static function ($fila) {
+                return max(0, intval($fila["cantidad_actual"]));
+            },
+            $filasStock
+        ));
+        if ($stockDisponible < $cantidad) {
+            throw new Exception("Stock insuficiente en el almacén Principal para el producto ID $idProducto. Disponible: $stockDisponible.");
+        }
+
+        // Si el almacén tiene más de un registro del mismo producto, descontar
+        // entre ellos sin utilizar existencias de otros almacenes.
+        $cantidadPendiente = $cantidad;
+        foreach ($filasStock as $filaStock) {
+            $cantidadInicio = intval($filaStock["cantidad_actual"]);
+            if ($cantidadInicio <= 0) {
+                continue;
+            }
+
+            $cantidadDescontar = min($cantidadInicio, $cantidadPendiente);
+            $cantidadFinal = $cantidadInicio - $cantidadDescontar;
+            $idStock = intval($filaStock["id"]);
+
+            // C. Descontar del registro del almacén principal.
+            $sqlUpdateStock->bind_param("iii", $cantidadDescontar, $idStock, $cantidadDescontar);
+            if (!$sqlUpdateStock->execute()) {
+                throw new Exception("Error al actualizar stock: " . $sqlUpdateStock->error);
+            }
+            if ($sqlUpdateStock->affected_rows !== 1) {
+                throw new Exception("No se pudo descontar el stock del almacén Principal para el producto ID $idProducto.");
+            }
+
+            // D. Registrar el movimiento del registro descontado.
+            $sqlMovimiento->bind_param("iiiis", $idStock, $cantidadInicio, $cantidadDescontar, $cantidadFinal, $numeroFactura);
+            if (!$sqlMovimiento->execute()) {
+                throw new Exception("Error en movimientos: " . $sqlMovimiento->error);
+            }
+
+            $cantidadPendiente -= $cantidadDescontar;
+            if ($cantidadPendiente === 0) {
+                break;
+            }
         }
     }
 
@@ -86,8 +230,7 @@ try {
     ]);
 
 } catch (Exception $e) {
-    // Si hubo error, deshacemos todo
     $conexion->rollback();
-    echo json_encode(["ok" => false, "msg" => "Error al procesar la venta: " . $e->getMessage()]);
+    echo json_encode(["ok" => false, "msg" => $e->getMessage()]);
 }
 ?>

@@ -15,8 +15,7 @@ $sql = "
     INNER JOIN stock s ON m.id_stock = s.id
     INNER JOIN productos p ON s.id_producto = p.id
     ORDER BY m.fecha DESC
-    LIMIT 10
-";
+    LIMIT 5";
 
 $stmt = $conexion->prepare($sql);
 $stmt->execute();

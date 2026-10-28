@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Proveedores</title>
   <link rel="icon" type="image/x-icon" href="../assets/css/favicon.png">
-  <link rel="stylesheet" href="../assets/css/styles.css">
+  <link rel="stylesheet" href="../assets/css/styles.css?v=filtro-desplegable">
 </head>
 <body>
 <div class="layout">
@@ -18,6 +18,14 @@
       <div class="search-controls">
         <input type="text" id="buscar-proveedor" placeholder="Buscar proveedor...">
       </div>
+      <div id="filtro-proveedores" class="filtro-estado">
+        <button type="button" data-filtro-toggle aria-haspopup="true" aria-expanded="false">Filtrar estado ▾</button>
+        <div data-filtro-menu class="hidden" role="group" aria-label="Filtrar proveedores por estado">
+          <button type="button" data-estado="1">Activos</button>
+          <button type="button" data-estado="0">Inactivos</button>
+          <button type="button" data-estado="todos">Todos</button>
+        </div>
+      </div>
       <button id="btn-nuevo-proveedor" class="btn-primary btn-crear">Nuevo proveedor</button>
     </div>
 
@@ -28,6 +36,7 @@
         <th>Teléfono</th>
         <th>Correo</th>
         <th>Dirección</th>
+        <th>Estado</th>
         <th>Acciones</th>
         </tr>
       </thead>
@@ -120,9 +129,12 @@ document.querySelectorAll(".nav-dropdown-btn").forEach(btn => {
     parent.classList.toggle("open");});
 });
 </script>
+<script src="../assets/js/feedback.js"></script>
+<script src="../assets/js/filtro_estado.js?v=1"></script>
 <script src="proveedores.js"></script>
 <script src="../assets/js/usuario.js"></script>
 <script src="../assets/js/config_farmacia.js"></script>
 <script src="../assets/js/ajustes_sidebar.js"></script>
+<script src="../assets/js/permisos.js"></script>
 </body>
 </html>

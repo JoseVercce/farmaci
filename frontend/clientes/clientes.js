@@ -37,7 +37,8 @@ document.getElementById("modal-cliente").style.display = "flex";
 
     const fd = new FormData(form);
     const id = form.querySelector("input[name='id']");
-    const archivo = id ? "actualizar.php" : "guardar.php";
+    const esEdicion = Boolean(id);
+    const archivo = esEdicion ? "actualizar.php" : "guardar.php";
 
     try {
       const res = await fetch(API_CLIENTE + archivo, {
@@ -50,6 +51,10 @@ document.getElementById("modal-cliente").style.display = "flex";
       if (data.status === "success") {
         modal.style.display = "none"; 
         cargarClientes();
+        mostrarMensajeBonito(
+          esEdicion ? "Cliente actualizado correctamente" : "Cliente registrado correctamente",
+          "👥"
+        );
       } else {
         alert("Error: " + data.message);
       }
@@ -75,7 +80,7 @@ async function cargarClientes() {
 
   try {
     const res = await fetch(
-      `${API_CLIENTE}listar.php?buscar=${buscar}&pagina=${pagina}&limite=10`
+      `${API_CLIENTE}listar.php?buscar=${buscar}&pagina=${pagina}&limite=8`
     );
 
     const data = await res.json();
@@ -98,10 +103,10 @@ async function cargarClientes() {
         <td>${c.cedula}</td>
         <td>${c.telefono}</td>
         <td>${c.direccion}</td>
-            <td class="acciones">
-                <button class="action-btn edit" onclick="editarCliente(${c.id})">✏️</button>
-                <button class="action-btn delete" onclick="eliminarCliente(${c.id})">🗑️</button>
-            </td>
+        <td class="acciones">
+          <button class="action-btn btn-editar" onclick="editarCliente(${c.id})">✏️</button>
+          <button class="action-btn btn-eliminar" onclick="eliminarCliente(${c.id})">🗑️</button>
+        </td>
       `;
       tbody.appendChild(tr);
     });
@@ -182,27 +187,28 @@ document.getElementById("modal-cliente").style.display = "flex";
 
 // ELIMINAR CLIENTE
 async function eliminarCliente(id) {
-  if (!confirm("¿Eliminar cliente?")) return;
+  confirmarAccion("¿Eliminar este cliente?", async () => {
+    const fd = new FormData();
+    fd.append("id", id);
 
-  const fd = new FormData();
-  fd.append("id", id);
+    try {
+      const res = await fetch(API_CLIENTE + "eliminar.php", {
+        method: "POST",
+        body: fd
+      });
 
-  try {
-    const res = await fetch(API_CLIENTE + "eliminar.php", {
-      method: "POST",
-      body: fd
-    });
+      const data = await res.json();
 
-    const data = await res.json();
-
-    if (data.status === "success") {
-      cargarClientes();
-    } else {
-      alert("Error: " + data.message);
+      if (data.status === "success") {
+        cargarClientes();
+        mostrarMensajeBonito("Cliente eliminado correctamente", "🗑️");
+      } else {
+        mostrarMensajeBonito(data.message || "No se pudo eliminar el cliente.", "❌");
+      }
+    } catch (err) {
+      mostrarMensajeBonito("Error de conexión con el servidor.", "❌");
     }
-  } catch (err) {
-    alert("Error de conexión con el servidor");
-  }
+  }, "Sí, eliminar");
 }
 
 /* LOGOUT */

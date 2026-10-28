@@ -1,35 +1,35 @@
 <?php
 header("Content-Type: application/json");
-require_once "../conexion.php";
-require '../seguridad.php';
+require_once __DIR__ . "/../conexion.php";
+require_once __DIR__ . "/../seguridad.php";
 requireLogin();
 
 try {
-    // Buscamos las últimas 100 ventas, ordenadas de la más reciente a la más antigua
     $sql = $conexion->prepare("
         SELECT 
-            v.id_venta, 
+            v.id AS id_venta,
             v.numero_factura, 
             v.fecha, 
             v.total, 
-            IFNULL(c.nombre, 'Consumidor Final') AS cliente
+            COALESCE(NULLIF(c.nombre, ''), 'Consumidor Final') AS cliente
         FROM ventas v
-        LEFT JOIN clientes c ON v.id_cliente = c.id_cliente
-        ORDER BY v.fecha DESC
+        LEFT JOIN clientes c ON c.id = v.id_cliente
+        ORDER BY v.fecha DESC, v.id DESC
         LIMIT 100
     ");
-    
     $sql->execute();
-    $res = $sql->get_result();
-    
-    $historial = [];
-    while ($row = $res->fetch_assoc()) {
-        $historial[] = $row;
-    }
+    $resultado = $sql->get_result();
+    $resultados = $resultado->fetch_all(MYSQLI_ASSOC);
 
-    echo json_encode(["ok" => true, "data" => $historial]);
+    echo json_encode([
+        "ok" => true,
+        "data" => $resultados
+    ]);
 
-} catch (Exception $e) {
-    echo json_encode(["ok" => false, "msg" => "Error al cargar el historial."]);
+} catch (mysqli_sql_exception $e) {
+    error_log("Error al obtener el historial de ventas: " . $e->getMessage());
+    echo json_encode([
+        "ok" => false,
+        "msg" => "Error al obtener el historial de ventas."
+    ]);
 }
-?>

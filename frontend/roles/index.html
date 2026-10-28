@@ -101,11 +101,45 @@
   </div>
 </div>
 
+<!-- Modal: Permisos por Rol -->
+<div class="modal hidden" id="modalPermisosRol">
+  <div class="modal-content modal-permisos-content">
+    <div class="modal-permisos-header">
+      <h2>Permisos por rol</h2>
+      <button type="button" class="btn-secondary" onclick="cerrarModalPermisos()">Cerrar</button>
+    </div>
 
+    <label for="selectRol">Rol a configurar</label>
+    <select id="selectRol" class="form-control"></select>
+
+    <h3>Módulos</h3>
+    <div id="listaModulos" class="modulos-container"></div>
+
+    <div class="permisos-paginas-header">
+      <h3 id="tituloPermisosModulo">Selecciona un módulo</h3>
+      <p>Marca los permisos que tendrá este rol en cada página. Desmarca para quitarlos.</p>
+    </div>
+    <div id="estadoPermisosRol" class="estado-permisos-rol" role="status" aria-live="polite">
+      Selecciona un módulo para consultar sus permisos.
+    </div>
+    <div id="listaPaginas" class="paginas-container"></div>
+
+    <div class="permisos-acciones">
+      <button type="button" id="btnGuardarPermisos" class="btn-primary" disabled>Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+<script src="../assets/js/feedback.js"></script>
 <script src="roles.js"></script>
 <script src="../assets/js/usuario.js"></script>
 <script src="../assets/js/config_farmacia.js"></script>
 <script src="../assets/js/ajustes_sidebar.js"></script>
+<script src="../assets/js/permisos.js"></script>
 <script>
 document.querySelectorAll(".nav-dropdown-btn").forEach(btn => {
   btn.addEventListener("click", () => {

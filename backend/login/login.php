@@ -19,6 +19,7 @@ try {
 
     if ($user && $claveValida) {
 
+        // Obtener roles del usuario
         $stmtRoles = $pdo->prepare("
             SELECT r.id, r.nombre
             FROM usuario_rol ur
@@ -28,6 +29,11 @@ try {
         $stmtRoles->execute([$user['id']]);
         $roles = $stmtRoles->fetchAll();
 
+        // Guardar el primer rol en la sesión
+        $id_rol = $roles[0]["id"];
+        $_SESSION["id_rol"] = $id_rol;
+
+        // Guardar datos del usuario
         $_SESSION['usuario'] = [
             "id"       => $user['id'],
             "nombre"   => $user['nombre'],

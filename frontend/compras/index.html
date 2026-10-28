@@ -102,11 +102,11 @@
   <label>Almacén destino</label>
 
   <div class="almacen-selector">
-    <button type="button" class="btn-secondary almacen-btn" data-almacen="8">
+    <button type="button" class="btn-secundario almacen-btn" data-almacen="8">
       🚚 Transito
     </button>
 
-    <button type="button" class="btn-secondary almacen-btn" data-almacen="6">
+    <button type="button" class="btn-secoundario almacen-btn" data-almacen="6">
       🏬 Depósito
     </button>
   </div>
@@ -224,16 +224,66 @@
   </div>
 </div>
 
+<!-- MODAL DE MENSAJE BONITO -->
+<div id="modal-mensaje" class="modal hidden">
+  <div class="modal-content" style="max-width: 400px; text-align: center; padding: 30px;">
+
+      <div id="mensaje-icono" style="font-size: 50px; margin-bottom: 15px;">✔️</div>
+
+      <h3 id="mensaje-texto" style="font-size: 20px; margin-bottom: 20px; color: #374151;">
+        Mensaje aquí
+      </h3>
+
+      <button id="mensaje-btn" class="btn-primary" style="width: 100%; padding: 12px;">
+        Aceptar
+      </button>
+
+  </div>
+</div>
+<!-- MODAL DE CONFIRMACIÓN -->
+<div id="modal-confirmar" class="modal hidden">
+  <div class="modal-content" style="max-width: 420px; text-align: center; padding: 30px;">
+
+      <div style="font-size: 55px; margin-bottom: 15px; color: #e11d48;">⚠️</div>
+
+      <h3 id="confirmar-texto" style="font-size: 20px; margin-bottom: 25px; color: #374151;">
+        ¿Está seguro?
+      </h3>
+
+      <div style="display: flex; gap: 12px; justify-content: center;">
+          <button id="confirmar-aceptar" class="btn-primary" style="padding: 10px 20px;">
+            Sí, eliminar
+          </button>
+
+          <button id="confirmar-cancelar" class="btn-secondary" style="padding: 10px 20px;">
+            Cancelar
+          </button>
+      </div>
+
+  </div>
+</div>
 
 <script>
-document.querySelectorAll(".nav-dropdown-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    btn.parentElement.classList.toggle("open");});
+document.querySelectorAll(".almacen-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+
+        // Quitar la clase activa de todos
+        document.querySelectorAll(".almacen-btn").forEach(b => b.classList.remove("active"));
+
+        // Activar el botón seleccionado
+        btn.classList.add("active");
+
+        // Guardar el almacén seleccionado
+        document.getElementById("detalle-almacen").value = btn.dataset.almacen;
+    });
 });
 </script>
+
 <script src="compras.js"></script>
 <script src="../assets/js/usuario.js"></script>
 <script src="../assets/js/config_farmacia.js"></script>
 <script src="../assets/js/ajustes_sidebar.js"></script>
+<script src="../assets/js/permisos.js"></script>
+
 </body>
 </html>

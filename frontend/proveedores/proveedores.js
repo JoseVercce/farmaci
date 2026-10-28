@@ -2,13 +2,12 @@ const API_PROVEEDOR = "../../backend/proveedores/";
 
 let paginaProv = 1;
 let buscarProv = "";
+let estadoProv = "1";
 
 // =====================================
 // INICIO
 // =====================================
 document.addEventListener("DOMContentLoaded", () => {
-  cargarProveedores();
-
   const btnNuevo = document.getElementById("btn-nuevo-proveedor");
   const modal = document.getElementById("modal-proveedor");
   const form = document.getElementById("form-proveedor");
@@ -36,7 +35,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const fd = new FormData(form);
 
     const id = document.querySelector("#form-proveedor input[name='id']");
-    const archivo = id && id.value ? "actualizar.php" : "crear.php";
+    const esEdicion = Boolean(id && id.value);
+    const archivo = esEdicion ? "actualizar.php" : "crear.php";
 
     const res = await fetch(API_PROVEEDOR + archivo, {
       method: "POST",
@@ -48,6 +48,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (data.ok || data.status === "success") {
       modal.classList.add("hidden");
       cargarProveedores();
+      mostrarMensajeBonito(
+        esEdicion ? "Proveedor actualizado correctamente" : "Proveedor registrado correctamente",
+        "🤝"
+      );
     } else {
       alert("Error al guardar proveedor");
     }
@@ -56,6 +60,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // BUSCAR PROVEEDOR
   document.getElementById("buscar-proveedor").addEventListener("input", e => {
     buscarProv = e.target.value;
+    paginaProv = 1;
+    cargarProveedores();
+  });
+
+  inicializarFiltroEstado("filtro-proveedores", (estado) => {
+    estadoProv = estado;
     paginaProv = 1;
     cargarProveedores();
   });
@@ -70,7 +80,7 @@ async function cargarProveedores() {
   tbody.innerHTML = "";
 
   const res = await fetch(
-    `${API_PROVEEDOR}listar.php?buscar=${buscarProv}&pagina=${paginaProv}&limite=10`
+    `${API_PROVEEDOR}listar.php?buscar=${encodeURIComponent(buscarProv)}&pagina=${paginaProv}&limite=8&estado=${estadoProv}`
   );
 
   const data = await res.json();
@@ -80,16 +90,24 @@ async function cargarProveedores() {
     return;
   }
 
+  if (data.data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hay proveedores para este filtro.</td></tr>';
+  }
+
   data.data.forEach(p => {
     const tr = document.createElement("tr");
+    const botonEstado = Number(p.estado) === 1
+      ? `<button class="action-btn delete" onclick="eliminarProveedor(${p.id})" aria-label="Inactivar proveedor">🗑️</button>`
+      : `<button class="action-btn edit" onclick="activarProveedor(${p.id})" aria-label="Activar proveedor">♻️</button>`;
     tr.innerHTML = `
       <td>${p.nombre}</td>
       <td>${p.telefono}</td>
       <td>${p.correo ?? ""}</td>
       <td>${p.direccion ?? ""}</td>
+      <td>${Number(p.estado) === 1 ? "Activo" : "Inactivo"}</td>
       <td class="acciones">
         <button class="action-btn edit" onclick="editarProveedor(${p.id})">✏️</button>
-        <button class="action-btn delete" onclick="eliminarProveedor(${p.id})">🗑️</button>
+        ${botonEstado}
       </td>
     `;
     tbody.appendChild(tr);
@@ -106,7 +124,7 @@ function renderPaginacionProveedores(total) {
   const cont = document.getElementById("paginacion-proveedores");
   cont.innerHTML = "";
 
-  const totalPaginas = Math.ceil(total / 10);
+  const totalPaginas = Math.ceil(total / 8);
   if (totalPaginas <= 1) return;
 
   cont.innerHTML += `<button onclick="irPaginaProv(1)">Primera</button>`;
@@ -132,6 +150,32 @@ function renderPaginacionProveedores(total) {
 function irPaginaProv(num) {
   paginaProv = num;
   cargarProveedores();
+}
+
+async function activarProveedor(id) {
+  confirmarAccion("¿Activar nuevamente este proveedor?", async () => {
+    const fd = new FormData();
+    fd.append("id", id);
+
+    try {
+      const respuesta = await fetch(API_PROVEEDOR + "activar.php", {
+        method: "POST",
+        body: fd
+      });
+      const data = await respuesta.json();
+
+      if (!respuesta.ok || data.status !== "success") {
+        mostrarMensajeBonito("Error: " + (data.msg || "No se pudo activar el proveedor."), "❌");
+        return;
+      }
+
+      await cargarProveedores();
+      mostrarMensajeBonito(data.msg || "Proveedor activado correctamente", "✅");
+    } catch (error) {
+      console.error("Error activando proveedor:", error);
+      mostrarMensajeBonito("Error de conexión al activar el proveedor.", "❌");
+    }
+  }, "Sí, activar");
 }
 
 
@@ -165,23 +209,24 @@ async function editarProveedor(id) {
 // ELIMINAR PROVEEDOR
 // =====================================
 async function eliminarProveedor(id) {
-  if (!confirm("¿Desactivar proveedor?")) return;
+  confirmarAccion("¿Eliminar o desactivar este proveedor?", async () => {
+    const fd = new FormData();
+    fd.append("id", id);
 
-  const fd = new FormData();
-  fd.append("id", id);
+    const res = await fetch(API_PROVEEDOR + "eliminar.php", {
+      method: "POST",
+      body: fd
+    });
 
-  const res = await fetch(API_PROVEEDOR + "eliminar.php", {
-    method: "POST",
-    body: fd
-  });
+    const data = await res.json();
 
-  const data = await res.json();
-
-  if (data.status === "success") {
-    cargarProveedores();
-  } else {
-    alert("Error al desactivar proveedor");
-  }
+    if (data.status === "success") {
+      cargarProveedores();
+      mostrarMensajeBonito(data.msg || "Proveedor eliminado correctamente", "🗑️");
+    } else {
+      alert("Error al desactivar proveedor");
+    }
+  }, "Sí, continuar");
 }
 
 document.getElementById("btn-mini-logout").addEventListener("click", () => {
